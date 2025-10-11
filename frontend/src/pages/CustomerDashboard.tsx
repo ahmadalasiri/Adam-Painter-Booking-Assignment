@@ -26,6 +26,11 @@ export const CustomerDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Cache for paginated data
+  const [bookingsCache, setBookingsCache] = useState<Map<number, Booking[]>>(
+    new Map()
+  );
+
   // Form state
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -40,7 +45,7 @@ export const CustomerDashboard = () => {
   };
 
   const fetchBookings = useCallback(
-    async (showLoadingIndicator = true) => {
+    async (showLoadingIndicator = true, forceRefresh = false) => {
       if (showLoadingIndicator) {
         setLoading(true);
       } else {
@@ -48,9 +53,22 @@ export const CustomerDashboard = () => {
       }
 
       try {
-        const bookingsResponse = await bookingAPI.getMyBookings(currentPage);
-        setBookings(bookingsResponse.data);
-        setTotalPages(bookingsResponse.meta.totalPages);
+        // Check cache first
+        const cachedData = bookingsCache.get(currentPage);
+
+        if (cachedData && !forceRefresh) {
+          // Use cached data
+          setBookings(cachedData);
+        } else {
+          // Fetch from API
+          const bookingsResponse = await bookingAPI.getMyBookings(currentPage);
+          setBookings(bookingsResponse.data);
+          setTotalPages(bookingsResponse.meta.totalPages);
+          // Update cache
+          setBookingsCache((prev) =>
+            new Map(prev).set(currentPage, bookingsResponse.data)
+          );
+        }
       } catch (err: any) {
         showError("Failed to load bookings. Please try again.");
       } finally {
@@ -58,7 +76,7 @@ export const CustomerDashboard = () => {
         setRefreshing(false);
       }
     },
-    [showError, currentPage]
+    [showError, currentPage, bookingsCache]
   );
 
   useEffect(() => {
@@ -66,7 +84,9 @@ export const CustomerDashboard = () => {
   }, [fetchBookings]);
 
   const handleRefresh = () => {
-    fetchBookings(false);
+    // Clear cache and force refresh
+    setBookingsCache(new Map());
+    fetchBookings(false, true);
     showSuccess("Bookings refreshed!", 2000);
   };
 
@@ -147,8 +167,9 @@ export const CustomerDashboard = () => {
       setEndTime("");
       setValidationError("");
 
-      // Fetch updated data in background to ensure consistency
-      setTimeout(() => fetchBookings(false), 500);
+      // Clear cache and fetch updated data
+      setBookingsCache(new Map());
+      setTimeout(() => fetchBookings(false, true), 500);
     } catch (err: any) {
       if (err.response?.data?.recommendations) {
         const recs = err.response.data.recommendations;

@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, isSameDay } from "date-fns";
-import { availabilityAPI, bookingAPI } from "../services/api";
+import {
+  availabilityAPI,
+  bookingAPI,
+  PaginatedResponse,
+} from "../services/api";
 import { useToast } from "../context/ToastContext";
 import { Pagination } from "../components/Pagination";
 import type { Availability, Booking } from "../types";
@@ -233,6 +237,14 @@ export const PainterDashboard = () => {
   const [bookingsPage, setBookingsPage] = useState(1);
   const [bookingsTotalPages, setBookingsTotalPages] = useState(1);
 
+  // Cache for paginated data
+  const [availabilityCache, setAvailabilityCache] = useState<
+    Map<number, Availability[]>
+  >(new Map());
+  const [bookingsCache, setBookingsCache] = useState<Map<number, Booking[]>>(
+    new Map()
+  );
+
   // Form state
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -247,7 +259,7 @@ export const PainterDashboard = () => {
   };
 
   const fetchData = useCallback(
-    async (showLoadingIndicator = true) => {
+    async (showLoadingIndicator = true, forceRefresh = false) => {
       if (showLoadingIndicator) {
         setLoading(true);
       } else {
@@ -255,14 +267,43 @@ export const PainterDashboard = () => {
       }
 
       try {
-        const [availabilityResponse, bookingsResponse] = await Promise.all([
-          availabilityAPI.getMyAvailability(availabilityPage),
-          bookingAPI.getAssignedBookings(bookingsPage),
-        ]);
-        setAvailability(availabilityResponse.data);
-        setAvailabilityTotalPages(availabilityResponse.meta.totalPages);
-        setBookings(bookingsResponse.data);
-        setBookingsTotalPages(bookingsResponse.meta.totalPages);
+        // Check cache for availability
+        const availabilityCached = availabilityCache.get(availabilityPage);
+        let availabilityResponse: PaginatedResponse<Availability> | undefined;
+
+        if (availabilityCached && !forceRefresh) {
+          // Use cached data
+          setAvailability(availabilityCached);
+        } else {
+          // Fetch from API
+          availabilityResponse = await availabilityAPI.getMyAvailability(
+            availabilityPage
+          );
+          setAvailability(availabilityResponse.data);
+          setAvailabilityTotalPages(availabilityResponse.meta.totalPages);
+          // Update cache
+          setAvailabilityCache((prev) =>
+            new Map(prev).set(availabilityPage, availabilityResponse!.data)
+          );
+        }
+
+        // Check cache for bookings
+        const bookingsCached = bookingsCache.get(bookingsPage);
+        let bookingsResponse: PaginatedResponse<Booking> | undefined;
+
+        if (bookingsCached && !forceRefresh) {
+          // Use cached data
+          setBookings(bookingsCached);
+        } else {
+          // Fetch from API
+          bookingsResponse = await bookingAPI.getAssignedBookings(bookingsPage);
+          setBookings(bookingsResponse.data);
+          setBookingsTotalPages(bookingsResponse.meta.totalPages);
+          // Update cache
+          setBookingsCache((prev) =>
+            new Map(prev).set(bookingsPage, bookingsResponse!.data)
+          );
+        }
       } catch (err: any) {
         showError("Failed to load data. Please try again.");
       } finally {
@@ -270,7 +311,13 @@ export const PainterDashboard = () => {
         setRefreshing(false);
       }
     },
-    [showError, availabilityPage, bookingsPage]
+    [
+      showError,
+      availabilityPage,
+      bookingsPage,
+      availabilityCache,
+      bookingsCache,
+    ]
   );
 
   useEffect(() => {
@@ -278,7 +325,10 @@ export const PainterDashboard = () => {
   }, [fetchData]);
 
   const handleRefresh = () => {
-    fetchData(false);
+    // Clear cache and force refresh
+    setAvailabilityCache(new Map());
+    setBookingsCache(new Map());
+    fetchData(false, true);
     showSuccess("Data refreshed!", 2000);
   };
 
@@ -346,8 +396,9 @@ export const PainterDashboard = () => {
       setEndTime("");
       setValidationError("");
 
-      // Fetch updated data in background
-      setTimeout(() => fetchData(false), 500);
+      // Clear cache and fetch updated data
+      setAvailabilityCache(new Map());
+      setTimeout(() => fetchData(false, true), 500);
     } catch (err: any) {
       showError(
         err.response?.data?.message ||
