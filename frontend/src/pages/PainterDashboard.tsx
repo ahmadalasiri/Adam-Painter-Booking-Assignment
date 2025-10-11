@@ -87,8 +87,7 @@ const AvailabilityTimeline = ({ availability, bookings }: TimelineProps) => {
     for (const segment of sorted) {
       // If there's a gap before this booking
       if (currentPos < segment.left) {
-        const gapStart =
-          slotStart + (currentPos / 100) * totalDuration;
+        const gapStart = slotStart + (currentPos / 100) * totalDuration;
         const gapEnd = slotStart + (segment.left / 100) * totalDuration;
 
         freeSegments.push({
