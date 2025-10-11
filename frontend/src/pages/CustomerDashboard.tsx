@@ -77,7 +77,7 @@ export const CustomerDashboard = () => {
         setRefreshing(false);
       }
     },
-    [showError, currentPage, bookingsCache]
+    [showError, currentPage]
   );
 
   useEffect(() => {

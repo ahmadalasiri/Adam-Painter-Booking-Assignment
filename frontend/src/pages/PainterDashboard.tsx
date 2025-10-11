@@ -272,7 +272,7 @@ export const PainterDashboard = () => {
         setRefreshing(false);
       }
     },
-    [showError, availabilityPage, availabilityCache]
+    [showError, availabilityPage]
   );
 
   useEffect(() => {
