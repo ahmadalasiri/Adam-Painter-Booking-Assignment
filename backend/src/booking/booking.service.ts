@@ -268,14 +268,21 @@ export class BookingService {
     for (const booking of sortedBookings) {
       // If there's a gap before this booking
       if (currentStart < booking.start) {
-        freeRanges.push({
-          start: currentStart,
-          end: booking.start,
-        });
+        // End 1 minute before the booking to avoid touching it
+        const freeEnd = new Date(booking.start.getTime() - 60000); // Subtract 1 minute
+
+        // Only add if there's meaningful free time (at least 1 minute)
+        if (currentStart < freeEnd) {
+          freeRanges.push({
+            start: currentStart,
+            end: freeEnd,
+          });
+        }
       }
 
-      // Move current start to after this booking
-      currentStart = booking.end > currentStart ? booking.end : currentStart;
+      // Move current start to 1 minute after this booking ends
+      const nextStart = new Date(booking.end.getTime() + 60000); // Add 1 minute
+      currentStart = nextStart > currentStart ? nextStart : currentStart;
     }
 
     // Add remaining free time after last booking
