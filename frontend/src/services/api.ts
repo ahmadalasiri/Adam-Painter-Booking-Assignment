@@ -114,7 +114,9 @@ export const bookingAPI = {
     page: number = 1,
     limit: number = 5
   ): Promise<PaginatedResponse<Booking>> =>
-    api.get("/bookings/me", { params: { page, limit } }).then((res) => res.data),
+    api
+      .get("/bookings/me", { params: { page, limit } })
+      .then((res) => res.data),
 
   getAssignedBookings: (
     page: number = 1,

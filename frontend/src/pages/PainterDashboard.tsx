@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, isSameDay } from "date-fns";
-import {
-  availabilityAPI,
-  PaginatedResponse,
-} from "../services/api";
+import { availabilityAPI, PaginatedResponse } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import { Pagination } from "../components/Pagination";
 import { getErrorMessage } from "../utils/errorHandler";
@@ -267,7 +264,9 @@ export const PainterDashboard = () => {
           );
         }
       } catch (err: any) {
-        showError(getErrorMessage(err, "Failed to load data. Please try again."));
+        showError(
+          getErrorMessage(err, "Failed to load data. Please try again.")
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -673,7 +672,6 @@ export const PainterDashboard = () => {
             onPageChange={setAvailabilityPage}
           />
         </div>
-
       </div>
     </div>
   );
