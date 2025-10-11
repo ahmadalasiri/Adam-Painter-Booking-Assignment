@@ -10,7 +10,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Set global prefix for all routes
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api/v1');
 
   // Security: Use Helmet to protect against common web vulnerabilities
   app.use(helmet());
@@ -45,7 +45,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
 
-  console.log(`🚀 Application running on: http://localhost:${port}/api`);
+  console.log(`🚀 Application running on: http://localhost:${port}/api/v1`);
 }
 bootstrap().catch((error) => {
   console.error('❌ Failed to start application:', error);
