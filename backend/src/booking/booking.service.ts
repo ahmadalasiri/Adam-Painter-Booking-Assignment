@@ -163,8 +163,9 @@ export class BookingService {
 
   private async findClosestAvailableSlots(startTime: Date, endTime: Date) {
     const requestedDuration = endTime.getTime() - startTime.getTime();
+    const now = new Date();
 
-    // Get all availability slots (both before and after requested time)
+    // Get all availability slots
     const allSlots = await this.db.query.availability.findMany({
       with: {
         painter: {
@@ -182,10 +183,17 @@ export class BookingService {
       painterName: string;
       startTime: Date;
       endTime: Date;
+      duration: number;
       distanceFromRequested: number;
+      isShorterThanRequested: boolean;
     }> = [];
 
     for (const slot of allSlots) {
+      // Skip slots that have already ended (past availability)
+      if (slot.endTime <= now) {
+        continue;
+      }
+
       // Get all bookings for this painter within this availability slot
       const bookingsInSlot = await this.db.query.bookings.findMany({
         where: and(
@@ -206,41 +214,65 @@ export class BookingService {
         })),
       );
 
-      // Find free ranges that can accommodate the requested duration
+      // Process all free ranges (regardless of duration)
       for (const range of freeRanges) {
-        const rangeDuration = range.end.getTime() - range.start.getTime();
-
-        if (rangeDuration >= requestedDuration) {
-          // Calculate distance from requested time
-          // Use the closest point of this free range to the requested time
-          let distance: number;
-
-          if (range.end <= startTime) {
-            // Range is completely before requested time
-            distance = startTime.getTime() - range.end.getTime();
-          } else if (range.start >= endTime) {
-            // Range is completely after requested time
-            distance = range.start.getTime() - endTime.getTime();
-          } else {
-            // Range overlaps with requested time (shouldn't happen if no painters available)
-            distance = 0;
-          }
-
-          freeSlots.push({
-            painterId: slot.painterId,
-            painterName: slot.painter.name,
-            startTime: range.start,
-            endTime: range.end,
-            distanceFromRequested: distance,
-          });
+        // Skip ranges that have already ended
+        if (range.end <= now) {
+          continue;
         }
+
+        // Adjust range start if it's in the past
+        const adjustedStart = range.start < now ? now : range.start;
+        const rangeDuration = range.end.getTime() - adjustedStart.getTime();
+
+        // Only include ranges with at least 30 minutes of free time
+        const minDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
+        if (rangeDuration < minDuration) {
+          continue;
+        }
+
+        // Calculate distance from requested start time to range start
+        let distance: number;
+
+        if (range.end <= startTime) {
+          // Range is completely before requested time
+          distance = startTime.getTime() - range.end.getTime();
+        } else if (adjustedStart >= endTime) {
+          // Range is completely after requested time
+          distance = adjustedStart.getTime() - endTime.getTime();
+        } else {
+          // Range overlaps with requested time - use start time distance
+          distance = Math.abs(adjustedStart.getTime() - startTime.getTime());
+        }
+
+        freeSlots.push({
+          painterId: slot.painterId,
+          painterName: slot.painter.name,
+          startTime: adjustedStart,
+          endTime: range.end,
+          duration: rangeDuration,
+          distanceFromRequested: distance,
+          isShorterThanRequested: rangeDuration < requestedDuration,
+        });
       }
     }
 
-    // Sort by distance (closest first) and take top 5
-    freeSlots.sort((a, b) => a.distanceFromRequested - b.distanceFromRequested);
+    // Sort by distance (closest first), then prioritize longer durations
+    freeSlots.sort((a, b) => {
+      // First sort by distance
+      if (a.distanceFromRequested !== b.distanceFromRequested) {
+        return a.distanceFromRequested - b.distanceFromRequested;
+      }
+      // If distance is same, prefer slots that can fit the full duration
+      if (a.isShorterThanRequested !== b.isShorterThanRequested) {
+        return a.isShorterThanRequested ? 1 : -1;
+      }
+      // If both are shorter or both can fit, prefer longer duration
+      return b.duration - a.duration;
+    });
 
-    return freeSlots.slice(0, 5).map((slot) => ({
+    // Return top 10 recommendations
+    return freeSlots.slice(0, 10).map((slot) => ({
       painterId: slot.painterId,
       painterName: slot.painterName,
       startTime: slot.startTime,
