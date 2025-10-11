@@ -499,7 +499,7 @@ export const PainterDashboard = () => {
                     )}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Booked on: {format(new Date(booking.createdAt), "PPP")}
+                    Booked on: {format(new Date(booking.createdAt), "PPP 'at' p")}
                   </p>
                 </div>
               ))}
