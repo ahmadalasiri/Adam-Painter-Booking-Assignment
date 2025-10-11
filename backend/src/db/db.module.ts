@@ -10,7 +10,7 @@ const databaseProvider = {
   provide: DB_CONNECTION,
   inject: [ConfigService],
   useFactory: (configService: ConfigService) => {
-    const connectionString = configService.get('DATABASE_URL')!;
+    const connectionString = configService.get<string>('DATABASE_URL')!;
     const client = postgres(connectionString);
     return drizzle(client, { schema });
   },

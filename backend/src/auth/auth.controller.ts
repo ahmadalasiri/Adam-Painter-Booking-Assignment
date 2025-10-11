@@ -18,7 +18,7 @@ export class AuthController {
   }
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 attempts per minute
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
