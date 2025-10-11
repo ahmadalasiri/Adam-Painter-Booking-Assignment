@@ -25,6 +25,7 @@ export const CustomerDashboard = () => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   const fetchBookings = useCallback(
     async (showLoadingIndicator = true) => {
@@ -56,8 +57,52 @@ export const CustomerDashboard = () => {
     showSuccess("Bookings refreshed!", 2000);
   };
 
+  // Validate time inputs
+  const validateTimes = useCallback(() => {
+    if (!startTime || !endTime) {
+      setValidationError("");
+      return false;
+    }
+
+    const now = new Date();
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (start <= now) {
+      setValidationError("⚠️ Start time must be in the future");
+      return false;
+    }
+
+    if (end <= now) {
+      setValidationError("⚠️ End time must be in the future");
+      return false;
+    }
+
+    if (end <= start) {
+      setValidationError("⚠️ End time must be after start time");
+      return false;
+    }
+
+    setValidationError("");
+    return true;
+  }, [startTime, endTime]);
+
+  // Validate whenever times change
+  useEffect(() => {
+    if (startTime || endTime) {
+      validateTimes();
+    }
+  }, [startTime, endTime, validateTimes]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate before submitting
+    if (!validateTimes()) {
+      showError(validationError || "Please fix the validation errors");
+      return;
+    }
+
     setRecommendations([]);
     setSubmitting(true);
 
@@ -87,6 +132,7 @@ export const CustomerDashboard = () => {
       // Clear form
       setStartTime("");
       setEndTime("");
+      setValidationError("");
 
       // Fetch updated data in background to ensure consistency
       setTimeout(() => fetchBookings(false), 500);
@@ -233,9 +279,29 @@ export const CustomerDashboard = () => {
               </div>
             </div>
 
+            {/* Validation Error Message */}
+            {validationError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="font-medium">{validationError}</span>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={submitting}
+              disabled={
+                submitting || !!validationError || !startTime || !endTime
+              }
               className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {submitting && (
