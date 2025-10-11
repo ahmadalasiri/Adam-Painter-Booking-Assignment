@@ -146,7 +146,7 @@ export const CustomerDashboard = () => {
         endTime: new Date(endTime).toISOString(),
       });
 
-      // Optimistic update - add booking immediately to the list
+      // Create booking object from response
       const newBooking: Booking = {
         id: response.bookingId,
         painter: response.painter,
@@ -155,8 +155,6 @@ export const CustomerDashboard = () => {
         status: response.status,
         createdAt: new Date().toISOString(),
       };
-
-      setBookings((prev) => [newBooking, ...prev]);
 
       showSuccess(
         `🎉 Booking confirmed! Assigned painter: ${response.painter.name}`,
@@ -168,9 +166,27 @@ export const CustomerDashboard = () => {
       setEndTime("");
       setValidationError("");
 
-      // Clear cache and fetch updated data
-      setBookingsCache(new Map());
-      setTimeout(() => fetchBookings(false, true), 500);
+      // Smart cache handling based on current page
+      if (currentPage === 1) {
+        // On page 1: Add optimistically to current view (sorted by newest first)
+        setBookings((prev) => [newBooking, ...prev].slice(0, 5));
+        // Update page 1 cache with new item
+        setBookingsCache((prev) => {
+          const newCache = new Map(prev);
+          const page1Data = [newBooking, ...(prev.get(1) || [])].slice(0, 5);
+          newCache.set(1, page1Data);
+          return newCache;
+        });
+      } else {
+        // On page 2+: Navigate to page 1 to show the new booking
+        setCurrentPage(1);
+        // Invalidate page 1 cache so it refetches with the new booking
+        setBookingsCache((prev) => {
+          const newCache = new Map(prev);
+          newCache.delete(1);
+          return newCache;
+        });
+      }
     } catch (err: any) {
       // Check if this is a business logic error with recommendations
       if (err.response?.data?.recommendations) {
