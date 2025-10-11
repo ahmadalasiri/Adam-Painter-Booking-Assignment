@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, isSameDay } from "date-fns";
 import { bookingAPI } from "../services/api";
 import { useToast } from "../context/ToastContext";
+import { Pagination } from "../components/Pagination";
 import type { Booking, AvailabilityRecommendation } from "../types";
 
 // Helper function to format date range
@@ -20,6 +21,10 @@ export const CustomerDashboard = () => {
     AvailabilityRecommendation[]
   >([]);
   const { showSuccess, showError, showWarning } = useToast();
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Form state
   const [startTime, setStartTime] = useState("");
@@ -43,8 +48,9 @@ export const CustomerDashboard = () => {
       }
 
       try {
-        const data = await bookingAPI.getMyBookings();
-        setBookings(data);
+        const bookingsResponse = await bookingAPI.getMyBookings(currentPage);
+        setBookings(bookingsResponse.data);
+        setTotalPages(bookingsResponse.meta.totalPages);
       } catch (err: any) {
         showError("Failed to load bookings. Please try again.");
       } finally {
@@ -52,7 +58,7 @@ export const CustomerDashboard = () => {
         setRefreshing(false);
       }
     },
-    [showError]
+    [showError, currentPage]
   );
 
   useEffect(() => {
@@ -388,6 +394,13 @@ export const CustomerDashboard = () => {
               ))}
             </div>
           )}
+
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </div>
     </div>

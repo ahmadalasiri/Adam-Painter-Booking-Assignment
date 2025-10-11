@@ -7,6 +7,18 @@ import type {
   BookingResponse,
 } from "../types";
 
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const api = axios.create({
@@ -69,8 +81,13 @@ export const availabilityAPI = {
   }): Promise<Availability> =>
     api.post("/availability", data).then((res) => res.data),
 
-  getMyAvailability: (): Promise<Availability[]> =>
-    api.get("/availability/me").then((res) => res.data),
+  getMyAvailability: (
+    page: number = 1,
+    limit: number = 5
+  ): Promise<PaginatedResponse<Availability>> =>
+    api
+      .get("/availability/me", { params: { page, limit } })
+      .then((res) => res.data),
 };
 
 // Booking API
@@ -81,11 +98,19 @@ export const bookingAPI = {
   }): Promise<BookingResponse> =>
     api.post("/booking-request", data).then((res) => res.data),
 
-  getMyBookings: (): Promise<Booking[]> =>
-    api.get("/bookings/me").then((res) => res.data),
+  getMyBookings: (
+    page: number = 1,
+    limit: number = 5
+  ): Promise<PaginatedResponse<Booking>> =>
+    api.get("/bookings/me", { params: { page, limit } }).then((res) => res.data),
 
-  getAssignedBookings: (): Promise<Booking[]> =>
-    api.get("/bookings/assigned").then((res) => res.data),
+  getAssignedBookings: (
+    page: number = 1,
+    limit: number = 5
+  ): Promise<PaginatedResponse<Booking>> =>
+    api
+      .get("/bookings/assigned", { params: { page, limit } })
+      .then((res) => res.data),
 };
 
 export default api;

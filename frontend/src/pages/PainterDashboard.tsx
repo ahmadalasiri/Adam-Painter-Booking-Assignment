@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, isSameDay } from "date-fns";
 import { availabilityAPI, bookingAPI } from "../services/api";
 import { useToast } from "../context/ToastContext";
+import { Pagination } from "../components/Pagination";
 import type { Availability, Booking } from "../types";
 
 // Helper function to format date range
@@ -226,6 +227,12 @@ export const PainterDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const { showSuccess, showError } = useToast();
 
+  // Pagination state
+  const [availabilityPage, setAvailabilityPage] = useState(1);
+  const [availabilityTotalPages, setAvailabilityTotalPages] = useState(1);
+  const [bookingsPage, setBookingsPage] = useState(1);
+  const [bookingsTotalPages, setBookingsTotalPages] = useState(1);
+
   // Form state
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -248,12 +255,14 @@ export const PainterDashboard = () => {
       }
 
       try {
-        const [availabilityData, bookingsData] = await Promise.all([
-          availabilityAPI.getMyAvailability(),
-          bookingAPI.getAssignedBookings(),
+        const [availabilityResponse, bookingsResponse] = await Promise.all([
+          availabilityAPI.getMyAvailability(availabilityPage),
+          bookingAPI.getAssignedBookings(bookingsPage),
         ]);
-        setAvailability(availabilityData);
-        setBookings(bookingsData);
+        setAvailability(availabilityResponse.data);
+        setAvailabilityTotalPages(availabilityResponse.meta.totalPages);
+        setBookings(bookingsResponse.data);
+        setBookingsTotalPages(bookingsResponse.meta.totalPages);
       } catch (err: any) {
         showError("Failed to load data. Please try again.");
       } finally {
@@ -261,7 +270,7 @@ export const PainterDashboard = () => {
         setRefreshing(false);
       }
     },
-    [showError]
+    [showError, availabilityPage, bookingsPage]
   );
 
   useEffect(() => {
@@ -543,6 +552,13 @@ export const PainterDashboard = () => {
               })}
             </div>
           )}
+
+          {/* Pagination for Availability */}
+          <Pagination
+            currentPage={availabilityPage}
+            totalPages={availabilityTotalPages}
+            onPageChange={setAvailabilityPage}
+          />
         </div>
 
         {/* Assigned Bookings */}
@@ -613,6 +629,13 @@ export const PainterDashboard = () => {
               ))}
             </div>
           )}
+
+          {/* Pagination for Bookings */}
+          <Pagination
+            currentPage={bookingsPage}
+            totalPages={bookingsTotalPages}
+            onPageChange={setBookingsPage}
+          />
         </div>
       </div>
     </div>
