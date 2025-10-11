@@ -9,6 +9,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+
   // Security: Use Helmet to protect against common web vulnerabilities
   app.use(helmet());
 
@@ -42,7 +45,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
 
-  console.log(`🚀 Application running on: http://localhost:${port}`);
+  console.log(`🚀 Application running on: http://localhost:${port}/api`);
 }
 bootstrap().catch((error) => {
   console.error('❌ Failed to start application:', error);
