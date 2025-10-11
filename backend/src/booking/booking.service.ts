@@ -9,6 +9,7 @@ import { eq, and, lte, gte, sql, or, gt, lt } from 'drizzle-orm';
 import { DB_CONNECTION } from '../db/db.module';
 import * as schema from '../db/schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { PaginatedResponse } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class BookingService {
@@ -328,10 +329,26 @@ export class BookingService {
     return freeRanges;
   }
 
-  async findCustomerBookings(customerId: string) {
+  async findCustomerBookings(
+    customerId: string,
+    page: number = 1,
+    limit: number = 5,
+  ): Promise<PaginatedResponse<any>> {
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const totalResult = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.bookings)
+      .where(eq(schema.bookings.customerId, customerId));
+    const total = totalResult[0].count;
+
+    // Get paginated bookings
     const bookings = await this.db.query.bookings.findMany({
       where: eq(schema.bookings.customerId, customerId),
       orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
+      limit,
+      offset,
       with: {
         painter: {
           columns: {
@@ -342,7 +359,7 @@ export class BookingService {
       },
     });
 
-    return bookings.map((booking) => ({
+    const data = bookings.map((booking) => ({
       id: booking.id,
       painter: {
         id: booking.painter.id,
@@ -353,12 +370,38 @@ export class BookingService {
       status: booking.status,
       createdAt: booking.createdAt,
     }));
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  async findPainterBookings(painterId: string) {
+  async findPainterBookings(
+    painterId: string,
+    page: number = 1,
+    limit: number = 5,
+  ): Promise<PaginatedResponse<any>> {
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const totalResult = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.bookings)
+      .where(eq(schema.bookings.painterId, painterId));
+    const total = totalResult[0].count;
+
+    // Get paginated bookings
     const bookings = await this.db.query.bookings.findMany({
       where: eq(schema.bookings.painterId, painterId),
       orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
+      limit,
+      offset,
       with: {
         customer: {
           columns: {
@@ -370,7 +413,7 @@ export class BookingService {
       },
     });
 
-    return bookings.map((booking) => ({
+    const data = bookings.map((booking) => ({
       id: booking.id,
       customer: {
         id: booking.customer.id,
@@ -382,5 +425,15 @@ export class BookingService {
       status: booking.status,
       createdAt: booking.createdAt,
     }));
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

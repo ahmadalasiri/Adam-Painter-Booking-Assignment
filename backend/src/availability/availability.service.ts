@@ -5,10 +5,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { eq, and, or, lte, gte } from 'drizzle-orm';
+import { eq, and, or, lte, gte, sql } from 'drizzle-orm';
 import { DB_CONNECTION } from '../db/db.module';
 import * as schema from '../db/schema';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
+import { PaginatedResponse } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class AvailabilityService {
@@ -69,13 +70,37 @@ export class AvailabilityService {
     return availability;
   }
 
-  async findMyAvailability(painterId: string) {
+  async findMyAvailability(
+    painterId: string,
+    page: number = 1,
+    limit: number = 5,
+  ): Promise<PaginatedResponse<any>> {
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const totalResult = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.availability)
+      .where(eq(schema.availability.painterId, painterId));
+    const total = totalResult[0].count;
+
+    // Get paginated availability
     const availabilitySlots = await this.db.query.availability.findMany({
       where: eq(schema.availability.painterId, painterId),
       orderBy: (availability, { asc }) => [asc(availability.startTime)],
+      limit,
+      offset,
     });
 
-    return availabilitySlots;
+    return {
+      data: availabilitySlots,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async verifyPainterRole(userId: string): Promise<void> {

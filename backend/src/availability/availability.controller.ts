@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
 import { AvailabilityService } from './availability.service';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
+import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -23,8 +24,15 @@ export class AvailabilityController {
 
   @Get('me')
   @Roles('painter')
-  async findMyAvailability(@CurrentUser() user: any) {
+  async findMyAvailability(
+    @CurrentUser() user: any,
+    @Query() query: PaginationQueryDto,
+  ) {
     await this.availabilityService.verifyPainterRole(user.sub);
-    return this.availabilityService.findMyAvailability(user.sub);
+    return this.availabilityService.findMyAvailability(
+      user.sub,
+      query.page,
+      query.limit,
+    );
   }
 }

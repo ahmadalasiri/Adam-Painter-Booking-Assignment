@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -23,13 +24,27 @@ export class BookingController {
 
   @Get('bookings/me')
   @Roles('customer')
-  async getMyBookings(@CurrentUser() user: JwtPayload) {
-    return this.bookingService.findCustomerBookings(user.sub);
+  async getMyBookings(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.bookingService.findCustomerBookings(
+      user.sub,
+      query.page,
+      query.limit,
+    );
   }
 
   @Get('bookings/assigned')
   @Roles('painter')
-  async getAssignedBookings(@CurrentUser() user: JwtPayload) {
-    return this.bookingService.findPainterBookings(user.sub);
+  async getAssignedBookings(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.bookingService.findPainterBookings(
+      user.sub,
+      query.page,
+      query.limit,
+    );
   }
 }
