@@ -24,10 +24,12 @@ Authorization: Bearer {{painterToken}}
 }
 
 ### Get My Availability (Painter only)
+# Note: Response includes nested bookings for each availability slot
 GET {{baseUrl}}/availability/me
 Authorization: Bearer {{painterToken}}
 
 ### Get My Availability with Pagination - Page 1
+# Returns 5 availability slots per page, each with its associated bookings
 GET {{baseUrl}}/availability/me?page=1&limit=5
 Authorization: Bearer {{painterToken}}
 

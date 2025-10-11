@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { format, isSameDay } from "date-fns";
 import {
   availabilityAPI,
-  bookingAPI,
   PaginatedResponse,
 } from "../services/api";
 import { useToast } from "../context/ToastContext";
@@ -17,22 +16,8 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
   return `${format(startDate, "PPP p")} → ${format(endDate, "PPP p")}`;
 };
 
-// Helper to find bookings within an availability slot
-const getBookingsForAvailability = (
-  availability: Availability,
-  allBookings: Booking[]
-): Booking[] => {
-  const slotStart = new Date(availability.startTime).getTime();
-  const slotEnd = new Date(availability.endTime).getTime();
-
-  return allBookings.filter((booking) => {
-    const bookingStart = new Date(booking.startTime).getTime();
-    const bookingEnd = new Date(booking.endTime).getTime();
-
-    // Check if booking overlaps with availability
-    return bookingStart < slotEnd && bookingEnd > slotStart;
-  });
-};
+// Note: Bookings are now included directly in each availability object
+// from the backend API (availability.bookings)
 
 // Timeline component for visualizing availability and bookings
 interface TimelineProps {
@@ -226,24 +211,18 @@ const AvailabilityTimeline = ({ availability, bookings }: TimelineProps) => {
 
 export const PainterDashboard = () => {
   const [availability, setAvailability] = useState<Availability[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { showSuccess, showError } = useToast();
 
-  // Pagination state
+  // Pagination state (only for availability - bookings are included within)
   const [availabilityPage, setAvailabilityPage] = useState(1);
   const [availabilityTotalPages, setAvailabilityTotalPages] = useState(1);
-  const [bookingsPage, setBookingsPage] = useState(1);
-  const [bookingsTotalPages, setBookingsTotalPages] = useState(1);
 
-  // Cache for paginated data
+  // Cache for paginated availability data
   const [availabilityCache, setAvailabilityCache] = useState<
     Map<number, Availability[]>
   >(new Map());
-  const [bookingsCache, setBookingsCache] = useState<Map<number, Booking[]>>(
-    new Map()
-  );
 
   // Form state
   const [startTime, setStartTime] = useState("");
@@ -267,7 +246,7 @@ export const PainterDashboard = () => {
       }
 
       try {
-        // Check cache for availability
+        // Check cache for availability (now includes bookings)
         const availabilityCached = availabilityCache.get(availabilityPage);
         let availabilityResponse: PaginatedResponse<Availability> | undefined;
 
@@ -275,7 +254,7 @@ export const PainterDashboard = () => {
           // Use cached data
           setAvailability(availabilityCached);
         } else {
-          // Fetch from API
+          // Fetch from API (includes nested bookings for each availability)
           availabilityResponse = await availabilityAPI.getMyAvailability(
             availabilityPage
           );
@@ -286,24 +265,6 @@ export const PainterDashboard = () => {
             new Map(prev).set(availabilityPage, availabilityResponse!.data)
           );
         }
-
-        // Check cache for bookings
-        const bookingsCached = bookingsCache.get(bookingsPage);
-        let bookingsResponse: PaginatedResponse<Booking> | undefined;
-
-        if (bookingsCached && !forceRefresh) {
-          // Use cached data
-          setBookings(bookingsCached);
-        } else {
-          // Fetch from API
-          bookingsResponse = await bookingAPI.getAssignedBookings(bookingsPage);
-          setBookings(bookingsResponse.data);
-          setBookingsTotalPages(bookingsResponse.meta.totalPages);
-          // Update cache
-          setBookingsCache((prev) =>
-            new Map(prev).set(bookingsPage, bookingsResponse!.data)
-          );
-        }
       } catch (err: any) {
         showError("Failed to load data. Please try again.");
       } finally {
@@ -311,13 +272,7 @@ export const PainterDashboard = () => {
         setRefreshing(false);
       }
     },
-    [
-      showError,
-      availabilityPage,
-      bookingsPage,
-      availabilityCache,
-      bookingsCache,
-    ]
+    [showError, availabilityPage, availabilityCache]
   );
 
   useEffect(() => {
@@ -327,7 +282,6 @@ export const PainterDashboard = () => {
   const handleRefresh = () => {
     // Clear cache and force refresh
     setAvailabilityCache(new Map());
-    setBookingsCache(new Map());
     fetchData(false, true);
     showSuccess("Data refreshed!", 2000);
   };
@@ -559,7 +513,8 @@ export const PainterDashboard = () => {
           ) : (
             <div className="space-y-4">
               {availability.map((slot) => {
-                const slotBookings = getBookingsForAvailability(slot, bookings);
+                // Bookings are now included in the slot object from the API
+                const slotBookings = slot.bookings || [];
                 const startDate = new Date(slot.startTime);
                 const endDate = new Date(slot.endTime);
                 const durationHours = Math.round(
@@ -612,82 +567,6 @@ export const PainterDashboard = () => {
           />
         </div>
 
-        {/* Assigned Bookings */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">
-              Assigned Bookings
-            </h2>
-            {bookings.length > 0 && (
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                {bookings.length} booking{bookings.length !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-
-          {bookings.length === 0 ? (
-            <div className="text-center py-8">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400 mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              <p className="text-gray-600 text-lg mb-2">No bookings yet</p>
-              <p className="text-gray-500 text-sm">
-                Add availability and customers will be able to book you!
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {bookings.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="p-4 bg-green-50 rounded-lg border border-green-200 hover:shadow-md transition"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-bold text-gray-800">
-                        👤 {booking.customer?.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        ✉️ {booking.customer?.email}
-                      </p>
-                    </div>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                      {booking.status}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 font-medium mt-2">
-                    📅{" "}
-                    {formatDateRange(
-                      new Date(booking.startTime),
-                      new Date(booking.endTime)
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Booked on:{" "}
-                    {format(new Date(booking.createdAt), "PPP 'at' p")}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Pagination for Bookings */}
-          <Pagination
-            currentPage={bookingsPage}
-            totalPages={bookingsTotalPages}
-            onPageChange={setBookingsPage}
-          />
-        </div>
       </div>
     </div>
   );

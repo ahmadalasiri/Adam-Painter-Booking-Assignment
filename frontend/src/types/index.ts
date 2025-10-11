@@ -16,6 +16,7 @@ export interface Availability {
   startTime: string;
   endTime: string;
   createdAt: string;
+  bookings?: Booking[]; // Optional: populated in painter's "My Availability" view
 }
 
 export interface Booking {
