@@ -162,11 +162,10 @@ export class BookingService {
   }
 
   private async findClosestAvailableSlots(startTime: Date, endTime: Date) {
-    // Find slots after the requested time
-    const slotsAfter = await this.db.query.availability.findMany({
-      where: gt(schema.availability.startTime, endTime),
-      orderBy: (availability, { asc }) => [asc(availability.startTime)],
-      limit: 3,
+    const requestedDuration = endTime.getTime() - startTime.getTime();
+
+    // Get all availability slots (both before and after requested time)
+    const allSlots = await this.db.query.availability.findMany({
       with: {
         painter: {
           columns: {
@@ -177,39 +176,117 @@ export class BookingService {
       },
     });
 
-    // Find slots before the requested time
-    const slotsBefore = await this.db.query.availability.findMany({
-      where: lt(schema.availability.endTime, startTime),
-      orderBy: (availability, { desc }) => [desc(availability.endTime)],
-      limit: 3,
-      with: {
-        painter: {
-          columns: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    const recommendations: Array<{
+    // For each availability slot, find free sub-ranges
+    const freeSlots: Array<{
       painterId: string;
       painterName: string;
       startTime: Date;
       endTime: Date;
+      distanceFromRequested: number;
     }> = [];
 
-    // Format recommendations
-    for (const slot of [...slotsBefore, ...slotsAfter]) {
-      recommendations.push({
-        painterId: slot.painterId,
-        painterName: slot.painter.name,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+    for (const slot of allSlots) {
+      // Get all bookings for this painter within this availability slot
+      const bookingsInSlot = await this.db.query.bookings.findMany({
+        where: and(
+          eq(schema.bookings.painterId, slot.painterId),
+          lt(schema.bookings.startTime, slot.endTime),
+          gt(schema.bookings.endTime, slot.startTime),
+        ),
+        orderBy: (bookings, { asc }) => [asc(bookings.startTime)],
+      });
+
+      // Calculate free ranges within this availability slot
+      const freeRanges = this.calculateFreeRanges(
+        slot.startTime,
+        slot.endTime,
+        bookingsInSlot.map((b) => ({
+          start: b.startTime,
+          end: b.endTime,
+        })),
+      );
+
+      // Find free ranges that can accommodate the requested duration
+      for (const range of freeRanges) {
+        const rangeDuration = range.end.getTime() - range.start.getTime();
+
+        if (rangeDuration >= requestedDuration) {
+          // Calculate distance from requested time
+          // Use the closest point of this free range to the requested time
+          let distance: number;
+
+          if (range.end <= startTime) {
+            // Range is completely before requested time
+            distance = startTime.getTime() - range.end.getTime();
+          } else if (range.start >= endTime) {
+            // Range is completely after requested time
+            distance = range.start.getTime() - endTime.getTime();
+          } else {
+            // Range overlaps with requested time (shouldn't happen if no painters available)
+            distance = 0;
+          }
+
+          freeSlots.push({
+            painterId: slot.painterId,
+            painterName: slot.painter.name,
+            startTime: range.start,
+            endTime: range.end,
+            distanceFromRequested: distance,
+          });
+        }
+      }
+    }
+
+    // Sort by distance (closest first) and take top 5
+    freeSlots.sort((a, b) => a.distanceFromRequested - b.distanceFromRequested);
+
+    return freeSlots.slice(0, 5).map((slot) => ({
+      painterId: slot.painterId,
+      painterName: slot.painterName,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    }));
+  }
+
+  private calculateFreeRanges(
+    slotStart: Date,
+    slotEnd: Date,
+    bookings: Array<{ start: Date; end: Date }>,
+  ): Array<{ start: Date; end: Date }> {
+    if (bookings.length === 0) {
+      return [{ start: slotStart, end: slotEnd }];
+    }
+
+    const freeRanges: Array<{ start: Date; end: Date }> = [];
+    let currentStart = slotStart;
+
+    // Sort bookings by start time
+    const sortedBookings = [...bookings].sort(
+      (a, b) => a.start.getTime() - b.start.getTime(),
+    );
+
+    for (const booking of sortedBookings) {
+      // If there's a gap before this booking
+      if (currentStart < booking.start) {
+        freeRanges.push({
+          start: currentStart,
+          end: booking.start,
+        });
+      }
+
+      // Move current start to after this booking
+      currentStart = booking.end > currentStart ? booking.end : currentStart;
+    }
+
+    // Add remaining free time after last booking
+    if (currentStart < slotEnd) {
+      freeRanges.push({
+        start: currentStart,
+        end: slotEnd,
       });
     }
 
-    return recommendations;
+    return freeRanges;
   }
 
   async findCustomerBookings(customerId: string) {
