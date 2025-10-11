@@ -13,7 +13,7 @@ export class IsAfterStartTimeConstraint
       return false;
     }
 
-    const object = args.object as any;
+    const object = args.object as { startTime?: string };
     const startTimeString = object.startTime;
 
     if (!startTimeString) {
@@ -26,8 +26,7 @@ export class IsAfterStartTimeConstraint
     return endTime > startTime;
   }
 
-  defaultMessage(args: ValidationArguments) {
+  defaultMessage() {
     return 'End time must be after start time';
   }
 }
-

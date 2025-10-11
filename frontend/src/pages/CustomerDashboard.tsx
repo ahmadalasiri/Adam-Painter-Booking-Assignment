@@ -27,6 +27,13 @@ export const CustomerDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState("");
 
+  // Get current time for min attribute (formatted for datetime-local input)
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  };
+
   const fetchBookings = useCallback(
     async (showLoadingIndicator = true) => {
       if (showLoadingIndicator) {
@@ -256,6 +263,7 @@ export const CustomerDashboard = () => {
                   type="datetime-local"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
+                  min={getMinDateTime()}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -273,6 +281,7 @@ export const CustomerDashboard = () => {
                   type="datetime-local"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
+                  min={startTime || getMinDateTime()}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />

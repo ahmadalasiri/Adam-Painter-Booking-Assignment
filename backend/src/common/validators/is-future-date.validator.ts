@@ -6,7 +6,7 @@ import {
 
 @ValidatorConstraint({ name: 'isFutureDate', async: false })
 export class IsFutureDateConstraint implements ValidatorConstraintInterface {
-  validate(dateString: string, args: ValidationArguments) {
+  validate(dateString: string) {
     if (!dateString) {
       return false;
     }
@@ -21,4 +21,3 @@ export class IsFutureDateConstraint implements ValidatorConstraintInterface {
     return `${args.property} must be a date in the future`;
   }
 }
-
