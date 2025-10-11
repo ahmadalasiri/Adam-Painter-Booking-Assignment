@@ -1,8 +1,116 @@
 import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { availabilityAPI, bookingAPI } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import type { Availability, Booking } from "../types";
+
+// Helper function to format date range
+const formatDateRange = (startDate: Date, endDate: Date): string => {
+  if (isSameDay(startDate, endDate)) {
+    return `${format(startDate, "PPP p")} → ${format(endDate, "p")}`;
+  }
+  return `${format(startDate, "PPP p")} → ${format(endDate, "PPP p")}`;
+};
+
+// Helper to find bookings within an availability slot
+const getBookingsForAvailability = (
+  availability: Availability,
+  allBookings: Booking[]
+): Booking[] => {
+  const slotStart = new Date(availability.startTime).getTime();
+  const slotEnd = new Date(availability.endTime).getTime();
+
+  return allBookings.filter((booking) => {
+    const bookingStart = new Date(booking.startTime).getTime();
+    const bookingEnd = new Date(booking.endTime).getTime();
+
+    // Check if booking overlaps with availability
+    return bookingStart < slotEnd && bookingEnd > slotStart;
+  });
+};
+
+// Timeline component for visualizing availability and bookings
+interface TimelineProps {
+  availability: Availability;
+  bookings: Booking[];
+}
+
+const AvailabilityTimeline = ({ availability, bookings }: TimelineProps) => {
+  const slotStart = new Date(availability.startTime).getTime();
+  const slotEnd = new Date(availability.endTime).getTime();
+  const totalDuration = slotEnd - slotStart;
+
+  // Calculate position and width for each booking
+  const bookingSegments = bookings.map((booking) => {
+    const bookingStart = Math.max(
+      new Date(booking.startTime).getTime(),
+      slotStart
+    );
+    const bookingEnd = Math.min(new Date(booking.endTime).getTime(), slotEnd);
+
+    const leftPercent = ((bookingStart - slotStart) / totalDuration) * 100;
+    const widthPercent = ((bookingEnd - bookingStart) / totalDuration) * 100;
+
+    return {
+      booking,
+      left: leftPercent,
+      width: widthPercent,
+      startTime: new Date(booking.startTime),
+      endTime: new Date(booking.endTime),
+    };
+  });
+
+  return (
+    <div className="mt-3">
+      <div className="relative h-8 bg-green-100 rounded-lg overflow-hidden border border-green-300">
+        {/* Available background - already set as bg-green-100 */}
+
+        {/* Booked segments overlay */}
+        {bookingSegments.map((segment, index) => (
+          <div
+            key={segment.booking.id || index}
+            className="absolute top-0 h-full bg-orange-400 border-l-2 border-r-2 border-orange-600 group cursor-help transition-all hover:bg-orange-500"
+            style={{
+              left: `${segment.left}%`,
+              width: `${segment.width}%`,
+            }}
+            title={`Booked: ${formatDateRange(
+              segment.startTime,
+              segment.endTime
+            )} | Customer: ${segment.booking.customer?.name || "Unknown"}`}
+          >
+            {/* Tooltip on hover */}
+            <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-10">
+              <div className="font-semibold mb-1">
+                🔒 Booked by {segment.booking.customer?.name || "Unknown"}
+              </div>
+              <div>{formatDateRange(segment.startTime, segment.endTime)}</div>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+        <div className="flex items-center gap-1">
+          <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
+          <span>Available</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-4 h-4 bg-orange-400 border border-orange-600 rounded"></div>
+          <span>Booked</span>
+        </div>
+        {bookingSegments.length > 0 && (
+          <span className="ml-auto font-medium">
+            {bookingSegments.length} booking
+            {bookingSegments.length !== 1 ? "s" : ""} in this slot
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const PainterDashboard = () => {
   const [availability, setAvailability] = useState<Availability[]>([]);
@@ -207,32 +315,50 @@ export const PainterDashboard = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {availability.map((slot) => (
-                <div
-                  key={slot.id}
-                  className="flex justify-between items-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:shadow-md transition"
-                >
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {format(new Date(slot.startTime), "PPP p")} →{" "}
-                      {format(new Date(slot.endTime), "p")}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Duration:{" "}
-                      {Math.round(
-                        (new Date(slot.endTime).getTime() -
-                          new Date(slot.startTime).getTime()) /
-                          (1000 * 60 * 60)
-                      )}{" "}
-                      hours
-                    </p>
+            <div className="space-y-4">
+              {availability.map((slot) => {
+                const slotBookings = getBookingsForAvailability(slot, bookings);
+                const startDate = new Date(slot.startTime);
+                const endDate = new Date(slot.endTime);
+                const durationHours = Math.round(
+                  (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
+                );
+
+                return (
+                  <div
+                    key={slot.id}
+                    className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-lg transition"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 text-lg">
+                          📅 {formatDateRange(startDate, endDate)}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          ⏱️ Duration: {durationHours} hour
+                          {durationHours !== 1 ? "s" : ""}
+                          {slotBookings.length > 0 && (
+                            <span className="ml-3 text-orange-600 font-medium">
+                              • {slotBookings.length} booking
+                              {slotBookings.length !== 1 ? "s" : ""} in this
+                              period
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="px-3 py-1 bg-blue-500 text-white rounded-full text-sm font-medium shadow-sm">
+                        Available
+                      </div>
+                    </div>
+
+                    {/* Visual Timeline */}
+                    <AvailabilityTimeline
+                      availability={slot}
+                      bookings={slotBookings}
+                    />
                   </div>
-                  <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                    Available
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -291,8 +417,11 @@ export const PainterDashboard = () => {
                     </span>
                   </div>
                   <p className="text-gray-700 font-medium mt-2">
-                    📅 {format(new Date(booking.startTime), "PPP p")} →{" "}
-                    {format(new Date(booking.endTime), "p")}
+                    📅{" "}
+                    {formatDateRange(
+                      new Date(booking.startTime),
+                      new Date(booking.endTime)
+                    )}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
                     Booked on: {format(new Date(booking.createdAt), "PPP")}

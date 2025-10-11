@@ -1,8 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { bookingAPI } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import type { Booking, AvailabilityRecommendation } from "../types";
+
+// Helper function to format date range
+const formatDateRange = (startDate: Date, endDate: Date): string => {
+  if (isSameDay(startDate, endDate)) {
+    return `${format(startDate, "PPP p")} → ${format(endDate, "p")}`;
+  }
+  return `${format(startDate, "PPP p")} → ${format(endDate, "PPP p")}`;
+};
 
 export const CustomerDashboard = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -177,8 +185,10 @@ export const CustomerDashboard = () => {
                       {rec.painterName}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {format(new Date(rec.startTime), "PPP p")} →{" "}
-                      {format(new Date(rec.endTime), "p")}
+                      {formatDateRange(
+                        new Date(rec.startTime),
+                        new Date(rec.endTime)
+                      )}
                     </p>
                   </div>
                 ))}
@@ -289,8 +299,11 @@ export const CustomerDashboard = () => {
                     </span>
                   </div>
                   <p className="text-gray-700">
-                    📅 {format(new Date(booking.startTime), "PPP p")} →{" "}
-                    {format(new Date(booking.endTime), "p")}
+                    📅{" "}
+                    {formatDateRange(
+                      new Date(booking.startTime),
+                      new Date(booking.endTime)
+                    )}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
                     Booked on: {format(new Date(booking.createdAt), "PPP")}
