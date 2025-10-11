@@ -60,10 +60,99 @@ const AvailabilityTimeline = ({ availability, bookings }: TimelineProps) => {
     };
   });
 
+  // Calculate free (available) segments
+  const calculateFreeSegments = () => {
+    if (bookingSegments.length === 0) {
+      return [
+        {
+          start: new Date(availability.startTime),
+          end: new Date(availability.endTime),
+          left: 0,
+          width: 100,
+        },
+      ];
+    }
+
+    const freeSegments: Array<{
+      start: Date;
+      end: Date;
+      left: number;
+      width: number;
+    }> = [];
+
+    // Sort bookings by start time
+    const sorted = [...bookingSegments].sort((a, b) => a.left - b.left);
+    let currentPos = 0; // Current position in percentage
+
+    for (const segment of sorted) {
+      // If there's a gap before this booking
+      if (currentPos < segment.left) {
+        const gapStart =
+          slotStart + (currentPos / 100) * totalDuration;
+        const gapEnd = slotStart + (segment.left / 100) * totalDuration;
+
+        freeSegments.push({
+          start: new Date(gapStart),
+          end: new Date(gapEnd),
+          left: currentPos,
+          width: segment.left - currentPos,
+        });
+      }
+
+      // Move current position to after this booking
+      currentPos = Math.max(currentPos, segment.left + segment.width);
+    }
+
+    // Add remaining free time after last booking
+    if (currentPos < 100) {
+      const gapStart = slotStart + (currentPos / 100) * totalDuration;
+      const gapEnd = slotEnd;
+
+      freeSegments.push({
+        start: new Date(gapStart),
+        end: new Date(gapEnd),
+        left: currentPos,
+        width: 100 - currentPos,
+      });
+    }
+
+    return freeSegments;
+  };
+
+  const freeSegments = calculateFreeSegments();
+
   return (
     <div className="mt-3">
-      <div className="relative h-8 bg-green-100 rounded-lg overflow-hidden border border-green-300">
-        {/* Available background - already set as bg-green-100 */}
+      <div className="relative h-8 bg-transparent rounded-lg overflow-hidden border border-green-300">
+        {/* Free (available) segments with tooltips */}
+        {freeSegments.map((segment, index) => (
+          <div
+            key={`free-${index}`}
+            className="absolute top-0 h-full bg-green-100 group cursor-help transition-all hover:bg-green-200"
+            style={{
+              left: `${segment.left}%`,
+              width: `${segment.width}%`,
+            }}
+            title={`Available: ${formatDateRange(segment.start, segment.end)}`}
+          >
+            {/* Tooltip on hover */}
+            <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-green-700 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-10">
+              <div className="font-semibold mb-1">✅ Available</div>
+              <div className="text-green-100">
+                {formatDateRange(segment.start, segment.end)}
+              </div>
+              <div className="text-xs mt-1 text-green-200">
+                Duration:{" "}
+                {Math.round(
+                  (segment.end.getTime() - segment.start.getTime()) /
+                    (1000 * 60 * 60)
+                )}{" "}
+                hours
+              </div>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-green-700"></div>
+            </div>
+          </div>
+        ))}
 
         {/* Booked segments overlay */}
         {bookingSegments.map((segment, index) => (
@@ -84,7 +173,26 @@ const AvailabilityTimeline = ({ availability, bookings }: TimelineProps) => {
               <div className="font-semibold mb-1">
                 🔒 Booked by {segment.booking.customer?.name || "Unknown"}
               </div>
-              <div>{formatDateRange(segment.startTime, segment.endTime)}</div>
+              <div className="text-gray-200">
+                {formatDateRange(segment.startTime, segment.endTime)}
+              </div>
+              <div className="text-xs mt-1">
+                <span className="text-gray-300">Email:</span>{" "}
+                {segment.booking.customer?.email || "N/A"}
+              </div>
+              <div className="text-xs mt-0.5">
+                <span
+                  className={`px-2 py-0.5 rounded ${
+                    segment.booking.status === "confirmed"
+                      ? "bg-green-600 text-white"
+                      : segment.booking.status === "completed"
+                      ? "bg-blue-600 text-white"
+                      : "bg-red-600 text-white"
+                  }`}
+                >
+                  {segment.booking.status}
+                </span>
+              </div>
               <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
             </div>
           </div>
