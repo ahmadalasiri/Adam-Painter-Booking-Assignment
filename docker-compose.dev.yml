@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  # Development override for backend with hot reload
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: npm run start:dev
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+    environment:
+      NODE_ENV: development
+
+  # Development override for frontend with hot reload
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    command: npm run dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+    environment:
+      NODE_ENV: development
