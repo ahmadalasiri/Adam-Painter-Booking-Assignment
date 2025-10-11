@@ -1,0 +1,141 @@
+### Complete Testing Workflow
+### Follow these steps in order to test the entire system
+
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+### ========================================
+### Step 1: Register Painter
+### ========================================
+# @name registerPainter
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "bob.ross@example.com",
+  "password": "happytrees123",
+  "name": "Bob Ross",
+  "role": "painter"
+}
+
+### ========================================
+### Step 2: Register Customer
+### ========================================
+# @name registerCustomer
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "customer1@example.com",
+  "password": "password123",
+  "name": "Jane Doe",
+  "role": "customer"
+}
+
+### ========================================
+### Step 3: Login as Painter (Copy the accessToken)
+### ========================================
+# @name loginPainter
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "bob.ross@example.com",
+  "password": "happytrees123"
+}
+
+### ========================================
+### Step 4: Add Painter Availability
+### (Replace PAINTER_TOKEN with token from Step 3)
+### ========================================
+POST {{baseUrl}}/availability
+Content-Type: {{contentType}}
+Authorization: Bearer PAINTER_TOKEN
+
+{
+  "startTime": "2025-10-15T09:00:00Z",
+  "endTime": "2025-10-15T18:00:00Z"
+}
+
+### ========================================
+### Step 5: Get Painter Availability
+### ========================================
+GET {{baseUrl}}/availability/me
+Authorization: Bearer PAINTER_TOKEN
+
+### ========================================
+### Step 6: Login as Customer (Copy the accessToken)
+### ========================================
+# @name loginCustomer
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "customer1@example.com",
+  "password": "password123"
+}
+
+### ========================================
+### Step 7: Request Booking (Replace CUSTOMER_TOKEN)
+### ========================================
+POST {{baseUrl}}/booking-request
+Content-Type: {{contentType}}
+Authorization: Bearer CUSTOMER_TOKEN
+
+{
+  "startTime": "2025-10-15T10:00:00Z",
+  "endTime": "2025-10-15T12:00:00Z"
+}
+
+### ========================================
+### Step 8: View Customer Bookings
+### ========================================
+GET {{baseUrl}}/bookings/me
+Authorization: Bearer CUSTOMER_TOKEN
+
+### ========================================
+### Step 9: View Painter's Assigned Bookings
+### ========================================
+GET {{baseUrl}}/bookings/assigned
+Authorization: Bearer PAINTER_TOKEN
+
+### ========================================
+### Step 10: Test No Availability (get recommendations)
+### ========================================
+POST {{baseUrl}}/booking-request
+Content-Type: {{contentType}}
+Authorization: Bearer CUSTOMER_TOKEN
+
+{
+  "startTime": "2025-10-20T10:00:00Z",
+  "endTime": "2025-10-20T12:00:00Z"
+}
+
+### ========================================
+### Additional Tests
+### ========================================
+
+### Test: Get Profile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer CUSTOMER_TOKEN
+
+### Test: Overlapping Availability (should fail)
+POST {{baseUrl}}/availability
+Content-Type: {{contentType}}
+Authorization: Bearer PAINTER_TOKEN
+
+{
+  "startTime": "2025-10-15T11:00:00Z",
+  "endTime": "2025-10-15T15:00:00Z"
+}
+
+### Test: Invalid Time Range (should fail)
+POST {{baseUrl}}/booking-request
+Content-Type: {{contentType}}
+Authorization: Bearer CUSTOMER_TOKEN
+
+{
+  "startTime": "2025-10-15T15:00:00Z",
+  "endTime": "2025-10-15T10:00:00Z"
+}
+

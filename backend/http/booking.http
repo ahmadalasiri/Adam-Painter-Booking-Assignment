@@ -1,0 +1,54 @@
+### Variables
+@baseUrl = http://localhost:3000
+@contentType = application/json
+@customerToken = YOUR_CUSTOMER_JWT_TOKEN_HERE
+@painterToken = YOUR_PAINTER_JWT_TOKEN_HERE
+
+### Request Booking (Customer only) - Success
+POST {{baseUrl}}/booking-request
+Content-Type: {{contentType}}
+Authorization: Bearer {{customerToken}}
+
+{
+  "startTime": "2025-10-15T10:00:00Z",
+  "endTime": "2025-10-15T12:00:00Z"
+}
+
+### Request Another Booking
+POST {{baseUrl}}/booking-request
+Content-Type: {{contentType}}
+Authorization: Bearer {{customerToken}}
+
+{
+  "startTime": "2025-10-15T13:00:00Z",
+  "endTime": "2025-10-15T15:00:00Z"
+}
+
+### Request Booking - No Painter Available (get recommendations)
+POST {{baseUrl}}/booking-request
+Content-Type: {{contentType}}
+Authorization: Bearer {{customerToken}}
+
+{
+  "startTime": "2025-10-20T10:00:00Z",
+  "endTime": "2025-10-20T12:00:00Z"
+}
+
+### Get My Bookings (Customer only)
+GET {{baseUrl}}/bookings/me
+Authorization: Bearer {{customerToken}}
+
+### Get Assigned Bookings (Painter only)
+GET {{baseUrl}}/bookings/assigned
+Authorization: Bearer {{painterToken}}
+
+### Try invalid time range (should fail)
+POST {{baseUrl}}/booking-request
+Content-Type: {{contentType}}
+Authorization: Bearer {{customerToken}}
+
+{
+  "startTime": "2025-10-15T15:00:00Z",
+  "endTime": "2025-10-15T10:00:00Z"
+}
+

@@ -1,0 +1,48 @@
+### Variables
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+### Register as Painter
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "john.painter@example.com",
+  "password": "password123",
+  "name": "John Painter",
+  "role": "painter"
+}
+
+### Register as Customer
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "alice.customer@example.com",
+  "password": "password123",
+  "name": "Alice Customer",
+  "role": "customer"
+}
+
+### Login as Painter
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "john.painter@example.com",
+  "password": "password123"
+}
+
+### Login as Customer
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "alice.customer@example.com",
+  "password": "password123"
+}
+
+### Get Profile (requires authentication)
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+

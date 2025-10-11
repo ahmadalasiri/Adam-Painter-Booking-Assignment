@@ -1,0 +1,49 @@
+### Variables
+@baseUrl = http://localhost:3000
+@contentType = application/json
+@painterToken = YOUR_PAINTER_JWT_TOKEN_HERE
+
+### Create Availability (Painter only)
+POST {{baseUrl}}/availability
+Content-Type: {{contentType}}
+Authorization: Bearer {{painterToken}}
+
+{
+  "startTime": "2025-10-15T09:00:00Z",
+  "endTime": "2025-10-15T17:00:00Z"
+}
+
+### Create Another Availability Slot
+POST {{baseUrl}}/availability
+Content-Type: {{contentType}}
+Authorization: Bearer {{painterToken}}
+
+{
+  "startTime": "2025-10-16T10:00:00Z",
+  "endTime": "2025-10-16T16:00:00Z"
+}
+
+### Get My Availability (Painter only)
+GET {{baseUrl}}/availability/me
+Authorization: Bearer {{painterToken}}
+
+### Try with overlapping time (should fail)
+POST {{baseUrl}}/availability
+Content-Type: {{contentType}}
+Authorization: Bearer {{painterToken}}
+
+{
+  "startTime": "2025-10-15T11:00:00Z",
+  "endTime": "2025-10-15T15:00:00Z"
+}
+
+### Try with invalid time range (should fail)
+POST {{baseUrl}}/availability
+Content-Type: {{contentType}}
+Authorization: Bearer {{painterToken}}
+
+{
+  "startTime": "2025-10-15T17:00:00Z",
+  "endTime": "2025-10-15T09:00:00Z"
+}
+
