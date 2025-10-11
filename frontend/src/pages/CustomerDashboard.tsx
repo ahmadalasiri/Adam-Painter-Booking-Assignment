@@ -1,0 +1,306 @@
+import { useState, useEffect, useCallback } from "react";
+import { format } from "date-fns";
+import { bookingAPI } from "../services/api";
+import { useToast } from "../context/ToastContext";
+import type { Booking, AvailabilityRecommendation } from "../types";
+
+export const CustomerDashboard = () => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [recommendations, setRecommendations] = useState<
+    AvailabilityRecommendation[]
+  >([]);
+  const { showSuccess, showError, showWarning } = useToast();
+
+  // Form state
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchBookings = useCallback(
+    async (showLoadingIndicator = true) => {
+      if (showLoadingIndicator) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
+      try {
+        const data = await bookingAPI.getMyBookings();
+        setBookings(data);
+      } catch (err: any) {
+        showError("Failed to load bookings. Please try again.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [showError]
+  );
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  const handleRefresh = () => {
+    fetchBookings(false);
+    showSuccess("Bookings refreshed!", 2000);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecommendations([]);
+    setSubmitting(true);
+
+    try {
+      const response = await bookingAPI.createRequest({
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
+      });
+
+      // Optimistic update - add booking immediately to the list
+      const newBooking: Booking = {
+        id: response.bookingId,
+        painter: response.painter,
+        startTime: response.startTime,
+        endTime: response.endTime,
+        status: response.status,
+        createdAt: new Date().toISOString(),
+      };
+
+      setBookings((prev) => [newBooking, ...prev]);
+
+      showSuccess(
+        `🎉 Booking confirmed! Assigned painter: ${response.painter.name}`,
+        6000
+      );
+
+      // Clear form
+      setStartTime("");
+      setEndTime("");
+
+      // Fetch updated data in background to ensure consistency
+      setTimeout(() => fetchBookings(false), 500);
+    } catch (err: any) {
+      if (err.response?.data?.recommendations) {
+        const recs = err.response.data.recommendations;
+        setRecommendations(recs);
+        showWarning(
+          err.response.data.error ||
+            "No painters available for this time slot.",
+          8000
+        );
+      } else {
+        showError(
+          err.response?.data?.message ||
+            "Failed to create booking. Please try again."
+        );
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-lg text-gray-600">Loading your bookings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4 max-w-6xl">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800">
+            Customer Dashboard
+          </h1>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+            title="Refresh bookings"
+          >
+            <svg
+              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        {/* Request Booking Form */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            Request a Booking
+          </h2>
+
+          {recommendations.length > 0 && (
+            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="font-medium text-yellow-800 mb-2">
+                💡 Closest Available Time Slots:
+              </p>
+              <div className="space-y-2">
+                {recommendations.map((rec, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-white rounded border border-yellow-300 hover:border-yellow-400 transition cursor-pointer"
+                    onClick={() => {
+                      setStartTime(
+                        format(new Date(rec.startTime), "yyyy-MM-dd'T'HH:mm")
+                      );
+                      setEndTime(
+                        format(new Date(rec.endTime), "yyyy-MM-dd'T'HH:mm")
+                      );
+                      setRecommendations([]);
+                      showSuccess(
+                        "Time slot selected! Click 'Request Booking' to confirm.",
+                        3000
+                      );
+                    }}
+                  >
+                    <p className="font-medium text-gray-800">
+                      {rec.painterName}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {format(new Date(rec.startTime), "PPP p")} →{" "}
+                      {format(new Date(rec.endTime), "p")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="startTime"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Start Time
+                </label>
+                <input
+                  id="startTime"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="endTime"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  End Time
+                </label>
+                <input
+                  id="endTime"
+                  type="datetime-local"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {submitting && (
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              )}
+              {submitting ? "Requesting..." : "Request Booking"}
+            </button>
+          </form>
+        </div>
+
+        {/* My Bookings */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">My Bookings</h2>
+
+          {bookings.length === 0 ? (
+            <div className="text-center py-8">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <p className="text-gray-600 text-lg mb-2">No bookings yet</p>
+              <p className="text-gray-500 text-sm">
+                Request a booking above to get started!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {bookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="p-4 bg-blue-50 rounded-lg border border-blue-200 hover:shadow-md transition"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-bold text-gray-800">
+                        🎨 Painter: {booking.painter?.name || "Assigned"}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Booking ID: {booking.id.substring(0, 8)}...
+                      </p>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        booking.status === "confirmed"
+                          ? "bg-green-100 text-green-700"
+                          : booking.status === "completed"
+                          ? "bg-gray-100 text-gray-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                  </div>
+                  <p className="text-gray-700">
+                    📅 {format(new Date(booking.startTime), "PPP p")} →{" "}
+                    {format(new Date(booking.endTime), "p")}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Booked on: {format(new Date(booking.createdAt), "PPP")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
