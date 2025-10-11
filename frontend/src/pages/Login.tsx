@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { authAPI } from "../services/api";
+import { getErrorMessage } from "../utils/errorHandler";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
@@ -22,7 +23,7 @@ export const Login = () => {
       login(response.accessToken, response.user);
       navigate("/");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid email or password");
+      setError(getErrorMessage(err, "Invalid email or password"));
     } finally {
       setLoading(false);
     }

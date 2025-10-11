@@ -3,6 +3,7 @@ import { format, isSameDay } from "date-fns";
 import { bookingAPI } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import { Pagination } from "../components/Pagination";
+import { getErrorMessage } from "../utils/errorHandler";
 import type { Booking, AvailabilityRecommendation } from "../types";
 
 // Helper function to format date range
@@ -70,7 +71,7 @@ export const CustomerDashboard = () => {
           );
         }
       } catch (err: any) {
-        showError("Failed to load bookings. Please try again.");
+        showError(getErrorMessage(err, "Failed to load bookings. Please try again."));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -171,6 +172,7 @@ export const CustomerDashboard = () => {
       setBookingsCache(new Map());
       setTimeout(() => fetchBookings(false, true), 500);
     } catch (err: any) {
+      // Check if this is a business logic error with recommendations
       if (err.response?.data?.recommendations) {
         const recs = err.response.data.recommendations;
         setRecommendations(recs);
@@ -180,9 +182,9 @@ export const CustomerDashboard = () => {
           8000
         );
       } else {
+        // Use error handler for all other errors (including server unavailability)
         showError(
-          err.response?.data?.message ||
-            "Failed to create booking. Please try again."
+          getErrorMessage(err, "Failed to create booking. Please try again.")
         );
       }
     } finally {

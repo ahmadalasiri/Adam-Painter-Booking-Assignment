@@ -6,6 +6,7 @@ import type {
   Booking,
   BookingResponse,
 } from "../types";
+import { isServerUnavailable } from "../utils/errorHandler";
 
 export interface PaginationMeta {
   total: number;
@@ -23,6 +24,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
+  timeout: 10000, // 10 second timeout
   headers: {
     "Content-Type": "application/json",
   },
@@ -41,7 +43,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect on 401 for authenticated routes, not login/register
+    // Check if server is unavailable (network error, 5xx, timeout)
+    if (isServerUnavailable(error)) {
+      // Add user-friendly message for server unavailability
+      error.userMessage =
+        "Server is currently unavailable. Please try again later.";
+      return Promise.reject(error);
+    }
+
+    // Handle 401 Unauthorized - only redirect on authenticated routes
     const isAuthRoute =
       error.config?.url?.includes("/auth/login") ||
       error.config?.url?.includes("/auth/register");
@@ -52,6 +62,8 @@ api.interceptors.response.use(
       localStorage.removeItem("user");
       window.location.href = "/login";
     }
+
+    // Pass through with original error for business logic errors (4xx)
     return Promise.reject(error);
   }
 );

@@ -6,6 +6,7 @@ import {
 } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import { Pagination } from "../components/Pagination";
+import { getErrorMessage } from "../utils/errorHandler";
 import type { Availability, Booking } from "../types";
 
 // Helper function to format date range
@@ -266,7 +267,7 @@ export const PainterDashboard = () => {
           );
         }
       } catch (err: any) {
-        showError("Failed to load data. Please try again.");
+        showError(getErrorMessage(err, "Failed to load data. Please try again."));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -355,8 +356,7 @@ export const PainterDashboard = () => {
       setTimeout(() => fetchData(false, true), 500);
     } catch (err: any) {
       showError(
-        err.response?.data?.message ||
-          "Failed to add availability. Please try again."
+        getErrorMessage(err, "Failed to add availability. Please try again.")
       );
     } finally {
       setSubmitting(false);
