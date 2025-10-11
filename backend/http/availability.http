@@ -27,6 +27,18 @@ Authorization: Bearer {{painterToken}}
 GET {{baseUrl}}/availability/me
 Authorization: Bearer {{painterToken}}
 
+### Get My Availability with Pagination - Page 1
+GET {{baseUrl}}/availability/me?page=1&limit=5
+Authorization: Bearer {{painterToken}}
+
+### Get My Availability with Pagination - Page 2
+GET {{baseUrl}}/availability/me?page=2&limit=5
+Authorization: Bearer {{painterToken}}
+
+### Get My Availability with Custom Limit
+GET {{baseUrl}}/availability/me?page=1&limit=10
+Authorization: Bearer {{painterToken}}
+
 ### Try with overlapping time (should fail)
 POST {{baseUrl}}/availability
 Content-Type: {{contentType}}

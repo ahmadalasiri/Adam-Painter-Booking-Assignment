@@ -38,8 +38,32 @@ Authorization: Bearer {{customerToken}}
 GET {{baseUrl}}/bookings/me
 Authorization: Bearer {{customerToken}}
 
+### Get My Bookings with Pagination - Page 1
+GET {{baseUrl}}/bookings/me?page=1&limit=5
+Authorization: Bearer {{customerToken}}
+
+### Get My Bookings with Pagination - Page 2
+GET {{baseUrl}}/bookings/me?page=2&limit=5
+Authorization: Bearer {{customerToken}}
+
+### Get My Bookings with Custom Limit
+GET {{baseUrl}}/bookings/me?page=1&limit=10
+Authorization: Bearer {{customerToken}}
+
 ### Get Assigned Bookings (Painter only)
 GET {{baseUrl}}/bookings/assigned
+Authorization: Bearer {{painterToken}}
+
+### Get Assigned Bookings with Pagination - Page 1
+GET {{baseUrl}}/bookings/assigned?page=1&limit=5
+Authorization: Bearer {{painterToken}}
+
+### Get Assigned Bookings with Pagination - Page 2
+GET {{baseUrl}}/bookings/assigned?page=2&limit=5
+Authorization: Bearer {{painterToken}}
+
+### Get Assigned Bookings with Custom Limit
+GET {{baseUrl}}/bookings/assigned?page=1&limit=10
 Authorization: Bearer {{painterToken}}
 
 ### Try invalid time range (should fail)
