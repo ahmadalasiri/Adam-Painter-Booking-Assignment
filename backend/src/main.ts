@@ -18,15 +18,9 @@ async function bootstrap() {
   // HTTP request logging
   app.use(morgan('dev'));
 
-  // Enable CORS
-  const corsOrigins = configService.get<string>(
-    'CORS_ORIGINS',
-    'http://localhost:5173,http://localhost:3001',
-  );
-  const origins = corsOrigins.split(',');
-
+  // Enable CORS - Allow all origins
   app.enableCors({
-    origin: origins,
+    origin: true, // Allow all origins
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
