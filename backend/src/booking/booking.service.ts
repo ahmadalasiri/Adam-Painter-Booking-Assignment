@@ -54,8 +54,10 @@ export class BookingService {
     }
 
     // Select painter with most bookings (most requested)
-    const selectedPainter =
-      await this.selectMostRequestedPainter(availablePainters);
+    const selectedPainter = await this.selectPainterByStrategy(
+      availablePainters,
+      'most',
+    );
 
     // Create booking
     const [booking] = await this.db
@@ -293,7 +295,12 @@ export class BookingService {
   }
 
   /**
-   * Select the most requested painter from available painters
+   * Select a painter based on booking count strategy
+   *
+   * @param availablePainters - Array of available painters
+   * @param strategy - Selection strategy:
+   *   - 'most': Select painter with highest booking count (most requested)
+   *   - 'least': Select painter with lowest booking count (least requested)
    *
    * Performance Optimization:
    * - Uses single GROUP BY query instead of N parallel queries
@@ -302,7 +309,7 @@ export class BookingService {
    * Query Strategy:
    * 1. Single GROUP BY query: Count bookings for all painters at once
    * 2. In-memory mapping to include painters with zero bookings
-   * 3. Sort by booking count (descending) and ID (for ties)
+   * 3. Sort by booking count and ID (direction depends on strategy)
    *
    * Performance Gain:
    * Before (N parallel queries):
@@ -321,9 +328,14 @@ export class BookingService {
    * - Database engines are highly optimized for GROUP BY
    * - Single connection = less network/connection overhead
    * - Scales linearly: 20 painters still = 1 query
+   *
+   * Use Cases:
+   * - 'most': Distribute work to experienced/proven painters
+   * - 'least': Balance workload evenly across all painters
    */
-  private async selectMostRequestedPainter(
+  private async selectPainterByStrategy(
     availablePainters: Array<{ id: string; name: string }>,
+    strategy: 'most' | 'least' = 'most',
   ) {
     const painterIds = availablePainters.map((p) => p.id);
 
@@ -361,12 +373,19 @@ export class BookingService {
       bookingCount: countsMap.get(painter.id) || 0,
     }));
 
-    // Sort by booking count descending, then by ID for tie-breaking
+    /**
+     * Sort based on strategy:
+     * - 'most': Descending order (highest count first)
+     * - 'least': Ascending order (lowest count first)
+     * - Tie-breaking: Always by ID (alphabetically)
+     */
     painterBookingCounts.sort((a, b) => {
-      if (b.bookingCount !== a.bookingCount) {
-        return b.bookingCount - a.bookingCount;
+      if (a.bookingCount !== b.bookingCount) {
+        return strategy === 'most'
+          ? b.bookingCount - a.bookingCount // Descending for 'most'
+          : a.bookingCount - b.bookingCount; // Ascending for 'least'
       }
-      return a.id.localeCompare(b.id);
+      return a.id.localeCompare(b.id); // Tie-breaking by ID
     });
 
     return painterBookingCounts[0];
