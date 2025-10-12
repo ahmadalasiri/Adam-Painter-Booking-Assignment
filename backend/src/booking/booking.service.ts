@@ -18,6 +18,10 @@ export class BookingService {
     private db: PostgresJsDatabase<typeof schema>,
   ) {}
 
+  // ============================================================================
+  // PUBLIC METHODS (Controller API)
+  // ============================================================================
+
   async createBookingRequest(
     customerId: string,
     createBookingDto: CreateBookingDto,
@@ -85,6 +89,95 @@ export class BookingService {
       status: booking.status,
     };
   }
+
+  async findCustomerBookings(
+    customerId: string,
+    page: number = 1,
+    limit: number = 5,
+  ): Promise<PaginatedResponse<any>> {
+    const offset = (page - 1) * limit;
+
+    // Parallel queries: Fetch count and bookings simultaneously
+    const [totalResult, bookings] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.bookings)
+        .where(eq(schema.bookings.customerId, customerId)),
+      this.db.query.bookings.findMany({
+        where: eq(schema.bookings.customerId, customerId),
+        orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
+        limit,
+        offset,
+        with: {
+          painter: {
+            columns: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const total = totalResult[0].count;
+
+    return {
+      data: bookings,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findPainterBookings(
+    painterId: string,
+    page: number = 1,
+    limit: number = 5,
+  ): Promise<PaginatedResponse<any>> {
+    const offset = (page - 1) * limit;
+
+    // Parallel queries: Fetch count and bookings simultaneously
+    const [totalResult, bookings] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.bookings)
+        .where(eq(schema.bookings.painterId, painterId)),
+      this.db.query.bookings.findMany({
+        where: eq(schema.bookings.painterId, painterId),
+        orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
+        limit,
+        offset,
+        with: {
+          customer: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const total = totalResult[0].count;
+
+    return {
+      data: bookings,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // ============================================================================
+  // PRIVATE HELPER METHODS
+  // ============================================================================
 
   private async findAvailablePainters(startTime: Date, endTime: Date) {
     // Find all availability slots that fully cover the requested time
@@ -327,90 +420,5 @@ export class BookingService {
     }
 
     return freeRanges;
-  }
-
-  async findCustomerBookings(
-    customerId: string,
-    page: number = 1,
-    limit: number = 5,
-  ): Promise<PaginatedResponse<any>> {
-    const offset = (page - 1) * limit;
-
-    // Parallel queries: Fetch count and bookings simultaneously
-    const [totalResult, bookings] = await Promise.all([
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(schema.bookings)
-        .where(eq(schema.bookings.customerId, customerId)),
-      this.db.query.bookings.findMany({
-        where: eq(schema.bookings.customerId, customerId),
-        orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
-        limit,
-        offset,
-        with: {
-          painter: {
-            columns: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      }),
-    ]);
-
-    const total = totalResult[0].count;
-
-    return {
-      data: bookings,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async findPainterBookings(
-    painterId: string,
-    page: number = 1,
-    limit: number = 5,
-  ): Promise<PaginatedResponse<any>> {
-    const offset = (page - 1) * limit;
-
-    // Parallel queries: Fetch count and bookings simultaneously
-    const [totalResult, bookings] = await Promise.all([
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(schema.bookings)
-        .where(eq(schema.bookings.painterId, painterId)),
-      this.db.query.bookings.findMany({
-        where: eq(schema.bookings.painterId, painterId),
-        orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
-        limit,
-        offset,
-        with: {
-          customer: {
-            columns: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      }),
-    ]);
-
-    const total = totalResult[0].count;
-
-    return {
-      data: bookings,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
   }
 }
