@@ -72,50 +72,76 @@ export class AvailabilityService {
   ): Promise<PaginatedResponse<any>> {
     const offset = (page - 1) * limit;
 
-    // Get total count
-    const totalResult = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.availability)
-      .where(eq(schema.availability.painterId, painterId));
+    // Single query: Get count + paginated availability slots
+    const [totalResult, availabilitySlots] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.availability)
+        .where(eq(schema.availability.painterId, painterId)),
+      this.db.query.availability.findMany({
+        where: eq(schema.availability.painterId, painterId),
+        orderBy: (availability, { desc }) => [desc(availability.startTime)],
+        limit,
+        offset,
+      }),
+    ]);
+
     const total = totalResult[0].count;
 
-    // Get paginated availability slots
-    const availabilitySlots = await this.db.query.availability.findMany({
-      where: eq(schema.availability.painterId, painterId),
-      orderBy: (availability, { desc }) => [desc(availability.startTime)],
-      limit,
-      offset,
+    // Early return if no availability slots
+    if (availabilitySlots.length === 0) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
+    // Find min/max time range for all slots on this page
+    const minStartTime = availabilitySlots.reduce(
+      (min, slot) => (slot.startTime < min ? slot.startTime : min),
+      availabilitySlots[0].startTime,
+    );
+    const maxEndTime = availabilitySlots.reduce(
+      (max, slot) => (slot.endTime > max ? slot.endTime : max),
+      availabilitySlots[0].endTime,
+    );
+
+    // Single query: Fetch ALL bookings that overlap with ANY slot on this page
+    const allBookings = await this.db.query.bookings.findMany({
+      where: and(
+        eq(schema.bookings.painterId, painterId),
+        lt(schema.bookings.startTime, maxEndTime),
+        gt(schema.bookings.endTime, minStartTime),
+      ),
+      orderBy: (bookings, { asc }) => [asc(bookings.startTime)],
+      with: {
+        customer: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
-    // For each availability slot, fetch all bookings that overlap
-    const availabilityWithBookings = await Promise.all(
-      availabilitySlots.map(async (slot) => {
-        // Find bookings that overlap with this availability slot
-        const bookings = await this.db.query.bookings.findMany({
-          where: and(
-            eq(schema.bookings.painterId, painterId),
-            // Booking overlaps if: booking.start < slot.end AND booking.end > slot.start
-            lt(schema.bookings.startTime, slot.endTime),
-            gt(schema.bookings.endTime, slot.startTime),
-          ),
-          orderBy: (bookings, { asc }) => [asc(bookings.startTime)],
-          with: {
-            customer: {
-              columns: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-        });
+    // Group bookings by slot in memory (O(n*m) but fast for small datasets)
+    const availabilityWithBookings = availabilitySlots.map((slot) => {
+      const slotBookings = allBookings.filter(
+        (booking) =>
+          booking.startTime < slot.endTime && booking.endTime > slot.startTime,
+      );
 
-        return {
-          ...slot,
-          bookings,
-        };
-      }),
-    );
+      return {
+        ...slot,
+        bookings: slotBookings,
+      };
+    });
 
     return {
       data: availabilityWithBookings,
