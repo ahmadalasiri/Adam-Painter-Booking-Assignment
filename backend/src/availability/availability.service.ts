@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Inject,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { eq, and, or, lte, gte, lt, gt, sql } from 'drizzle-orm';
 import { DB_CONNECTION } from '../db/db.module';
@@ -131,15 +126,5 @@ export class AvailabilityService {
         totalPages: Math.ceil(total / limit),
       },
     };
-  }
-
-  async verifyPainterRole(userId: string): Promise<void> {
-    const user = await this.db.query.users.findFirst({
-      where: eq(schema.users.id, userId),
-    });
-
-    if (!user || user.role !== 'painter') {
-      throw new ForbiddenException('Only painters can manage availability');
-    }
   }
 }

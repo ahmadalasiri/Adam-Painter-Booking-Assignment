@@ -19,7 +19,6 @@ export class AvailabilityController {
     @CurrentUser() user: JwtPayload,
     @Body() createAvailabilityDto: CreateAvailabilityDto,
   ) {
-    await this.availabilityService.verifyPainterRole(user.sub);
     return this.availabilityService.create(user.sub, createAvailabilityDto);
   }
 
@@ -29,7 +28,6 @@ export class AvailabilityController {
     @CurrentUser() user: JwtPayload,
     @Query() query: PaginationQueryDto,
   ) {
-    await this.availabilityService.verifyPainterRole(user.sub);
     return this.availabilityService.findMyAvailability(
       user.sub,
       query.page,
