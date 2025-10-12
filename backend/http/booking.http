@@ -5,7 +5,7 @@
 @painterToken = YOUR_PAINTER_JWT_TOKEN_HERE
 
 ### Request Booking (Customer only) - Success
-POST {{baseUrl}}/booking-request
+POST {{baseUrl}}/bookings
 Content-Type: {{contentType}}
 Authorization: Bearer {{customerToken}}
 
@@ -15,7 +15,7 @@ Authorization: Bearer {{customerToken}}
 }
 
 ### Request Another Booking
-POST {{baseUrl}}/booking-request
+POST {{baseUrl}}/bookings
 Content-Type: {{contentType}}
 Authorization: Bearer {{customerToken}}
 
@@ -25,7 +25,7 @@ Authorization: Bearer {{customerToken}}
 }
 
 ### Request Booking - No Painter Available (get recommendations)
-POST {{baseUrl}}/booking-request
+POST {{baseUrl}}/bookings
 Content-Type: {{contentType}}
 Authorization: Bearer {{customerToken}}
 
@@ -67,7 +67,7 @@ GET {{baseUrl}}/bookings/assigned?page=1&limit=10
 Authorization: Bearer {{painterToken}}
 
 ### Try invalid time range (should fail)
-POST {{baseUrl}}/booking-request
+POST {{baseUrl}}/bookings
 Content-Type: {{contentType}}
 Authorization: Bearer {{customerToken}}
 

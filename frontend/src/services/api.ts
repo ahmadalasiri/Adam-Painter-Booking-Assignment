@@ -108,7 +108,7 @@ export const bookingAPI = {
     startTime: string;
     endTime: string;
   }): Promise<BookingResponse> =>
-    api.post("/booking-request", data).then((res) => res.data),
+    api.post("/bookings", data).then((res) => res.data),
 
   getMyBookings: (
     page: number = 1,

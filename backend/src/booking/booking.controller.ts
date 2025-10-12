@@ -8,12 +8,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload.type';
 
-@Controller()
+@Controller('bookings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
-  @Post('booking-request')
+  @Post()
   @Roles('customer')
   async createBookingRequest(
     @CurrentUser() user: JwtPayload,
@@ -22,7 +22,7 @@ export class BookingController {
     return this.bookingService.createBookingRequest(user.sub, createBookingDto);
   }
 
-  @Get('bookings/me')
+  @Get('me')
   @Roles('customer')
   async getMyBookings(
     @CurrentUser() user: JwtPayload,
@@ -35,7 +35,7 @@ export class BookingController {
     );
   }
 
-  @Get('bookings/assigned')
+  @Get('assigned')
   @Roles('painter')
   async getAssignedBookings(
     @CurrentUser() user: JwtPayload,
