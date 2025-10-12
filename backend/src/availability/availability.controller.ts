@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @Controller('availability')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,7 +16,7 @@ export class AvailabilityController {
   @Post()
   @Roles('painter')
   async create(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Body() createAvailabilityDto: CreateAvailabilityDto,
   ) {
     await this.availabilityService.verifyPainterRole(user.sub);
@@ -25,7 +26,7 @@ export class AvailabilityController {
   @Get('me')
   @Roles('painter')
   async findMyAvailability(
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
     @Query() query: PaginationQueryDto,
   ) {
     await this.availabilityService.verifyPainterRole(user.sub);
