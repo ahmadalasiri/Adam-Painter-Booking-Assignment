@@ -403,13 +403,16 @@ export class BookingService {
    *
    * Environment Variables:
    * - RECOMMENDATION_WINDOW_DAYS: Days ahead to search (default: 7)
+   * - MIN_SLOT_DURATION_PERCENT: Minimum slot duration as % of requested (default: 50)
+   *   Example: For 2h request with 50%, only return slots >= 1h
    *
    * Query Strategy:
    * 1. Get future slots within time window (DB filtered)
    * 2. Get bookings within time window (DB filtered)
    * 3. Pre-group bookings by painter (O(m))
    * 4. Loop: Calculate free ranges per slot (O(n + m) total)
-   * 5. Sort and return top 10 closest
+   * 5. Filter by minimum duration (% of requested)
+   * 6. Sort and return top 10 closest
    *
    * Performance Gain:
    * Before:
@@ -439,6 +442,29 @@ export class BookingService {
     const windowEnd = new Date(
       startTime.getTime() + windowDays * 24 * 60 * 60 * 1000,
     );
+
+    /**
+     * Calculate minimum acceptable slot duration
+     * Based on percentage of requested duration (configurable)
+     *
+     * Examples:
+     * - Requested: 2h, Percent: 50% → Min: 1h (makes sense)
+     * - Requested: 4h, Percent: 50% → Min: 2h (reasonable alternative)
+     * - Requested: 30min, Percent: 50% → Min: 15min (still useful)
+     *
+     * Minimum absolute duration: 30 minutes (prevents tiny slots)
+     */
+    const minDurationPercent = Math.max(
+      1,
+      Math.min(
+        100,
+        this.configService.get<number>('MIN_SLOT_DURATION_PERCENT', 50),
+      ),
+    );
+    const calculatedMinDuration =
+      requestedDuration * (minDurationPercent / 100);
+    const absoluteMinDuration = 30 * 60 * 1000; // 30 minutes absolute minimum
+    const minDuration = Math.max(calculatedMinDuration, absoluteMinDuration);
 
     /**
      * Optimization #1 & #3: Time-windowed DB query for availability slots
@@ -534,8 +560,13 @@ export class BookingService {
         const adjustedStart = range.start < now ? now : range.start;
         const rangeDuration = range.end.getTime() - adjustedStart.getTime();
 
-        // Only include ranges with at least 30 minutes of free time
-        const minDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
+        /**
+         * Filter by minimum duration (dynamic based on requested duration)
+         * This ensures we only return meaningful alternatives
+         *
+         * Example: Customer wants 2h, min percent is 50%
+         * → Only return slots >= 1h (not 10-minute slots)
+         */
         if (rangeDuration < minDuration) {
           continue;
         }

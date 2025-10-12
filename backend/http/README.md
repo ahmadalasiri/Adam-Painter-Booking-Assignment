@@ -15,6 +15,26 @@ Install the **REST Client** extension by Huachao Mao:
 
 The HTTP Client is built-in. Just open any `.http` file and click the play button.
 
+### Environment Configuration
+
+The backend uses the following environment variables that affect API behavior:
+
+#### Recommendation System
+
+- **`RECOMMENDATION_WINDOW_DAYS`** (default: `7`)  
+  Days ahead to search for alternative slots when no exact match exists.
+
+- **`MIN_SLOT_DURATION_PERCENT`** (default: `50`, range: `1-100`)  
+  Minimum slot duration as percentage of requested duration.  
+  **Example**: Customer requests 2 hours with `MIN_SLOT_DURATION_PERCENT=50`  
+  → Only return slots ≥ 1 hour (not 10-minute slots)
+
+#### Painter Selection
+
+- **`PAINTER_SELECTION_STRATEGY`** (default: `most`)  
+  Options: `most` (most requested) or `least` (least requested)  
+  Controls which available painter gets assigned to bookings.
+
 ## Files
 
 ### 📄 `workflow.http`
