@@ -336,43 +336,32 @@ export class BookingService {
   ): Promise<PaginatedResponse<any>> {
     const offset = (page - 1) * limit;
 
-    // Get total count
-    const totalResult = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.bookings)
-      .where(eq(schema.bookings.customerId, customerId));
-    const total = totalResult[0].count;
-
-    // Get paginated bookings
-    const bookings = await this.db.query.bookings.findMany({
-      where: eq(schema.bookings.customerId, customerId),
-      orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
-      limit,
-      offset,
-      with: {
-        painter: {
-          columns: {
-            id: true,
-            name: true,
+    // Parallel queries: Fetch count and bookings simultaneously
+    const [totalResult, bookings] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.bookings)
+        .where(eq(schema.bookings.customerId, customerId)),
+      this.db.query.bookings.findMany({
+        where: eq(schema.bookings.customerId, customerId),
+        orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
+        limit,
+        offset,
+        with: {
+          painter: {
+            columns: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
 
-    const data = bookings.map((booking) => ({
-      id: booking.id,
-      painter: {
-        id: booking.painter.id,
-        name: booking.painter.name,
-      },
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      status: booking.status,
-      createdAt: booking.createdAt,
-    }));
+    const total = totalResult[0].count;
 
     return {
-      data,
+      data: bookings,
       meta: {
         total,
         page,
@@ -389,45 +378,33 @@ export class BookingService {
   ): Promise<PaginatedResponse<any>> {
     const offset = (page - 1) * limit;
 
-    // Get total count
-    const totalResult = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.bookings)
-      .where(eq(schema.bookings.painterId, painterId));
-    const total = totalResult[0].count;
-
-    // Get paginated bookings
-    const bookings = await this.db.query.bookings.findMany({
-      where: eq(schema.bookings.painterId, painterId),
-      orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
-      limit,
-      offset,
-      with: {
-        customer: {
-          columns: {
-            id: true,
-            name: true,
-            email: true,
+    // Parallel queries: Fetch count and bookings simultaneously
+    const [totalResult, bookings] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.bookings)
+        .where(eq(schema.bookings.painterId, painterId)),
+      this.db.query.bookings.findMany({
+        where: eq(schema.bookings.painterId, painterId),
+        orderBy: (bookings, { desc }) => [desc(bookings.startTime)],
+        limit,
+        offset,
+        with: {
+          customer: {
+            columns: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
 
-    const data = bookings.map((booking) => ({
-      id: booking.id,
-      customer: {
-        id: booking.customer.id,
-        name: booking.customer.name,
-        email: booking.customer.email,
-      },
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      status: booking.status,
-      createdAt: booking.createdAt,
-    }));
+    const total = totalResult[0].count;
 
     return {
-      data,
+      data: bookings,
       meta: {
         total,
         page,
