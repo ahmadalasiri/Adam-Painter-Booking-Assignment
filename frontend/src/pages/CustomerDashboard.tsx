@@ -14,6 +14,14 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
   return `${format(startDate, "PPP p")} → ${format(endDate, "PPP p")}`;
 };
 
+// Helper function to format duration in hours
+const formatDuration = (startDate: Date, endDate: Date): string => {
+  const durationHours = Math.round(
+    (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
+  );
+  return `${durationHours} hour${durationHours !== 1 ? "s" : ""}`;
+};
+
 export const CustomerDashboard = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -280,10 +288,17 @@ export const CustomerDashboard = () => {
                     }}
                   >
                     <p className="font-medium text-gray-800">
-                      {rec.painterName}
+                      🎨 {rec.painterName}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {formatDateRange(
+                      📅 {formatDateRange(
+                        new Date(rec.startTime),
+                        new Date(rec.endTime)
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      ⏱️ Duration:{" "}
+                      {formatDuration(
                         new Date(rec.startTime),
                         new Date(rec.endTime)
                       )}
@@ -421,6 +436,13 @@ export const CustomerDashboard = () => {
                   <p className="text-gray-700">
                     📅{" "}
                     {formatDateRange(
+                      new Date(booking.startTime),
+                      new Date(booking.endTime)
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    ⏱️ Duration:{" "}
+                    {formatDuration(
                       new Date(booking.startTime),
                       new Date(booking.endTime)
                     )}

@@ -647,6 +647,23 @@ export const PainterDashboard = () => {
                                       )}
                                     </p>
                                   </div>
+                                  {/* Duration */}
+                                  <p className="text-xs text-gray-600 ml-6 mb-1">
+                                    ⏱️ Duration:{" "}
+                                    {Math.round(
+                                      (new Date(booking.endTime).getTime() -
+                                        new Date(booking.startTime).getTime()) /
+                                        (1000 * 60 * 60)
+                                    )}{" "}
+                                    hour
+                                    {Math.round(
+                                      (new Date(booking.endTime).getTime() -
+                                        new Date(booking.startTime).getTime()) /
+                                        (1000 * 60 * 60)
+                                    ) !== 1
+                                      ? "s"
+                                      : ""}
+                                  </p>
                                   {/* Booked Date */}
                                   <p className="text-xs text-gray-500 ml-6">
                                     Booked on:{" "}
