@@ -466,10 +466,6 @@ export class BookingService {
     const absoluteMinDuration = 30 * 60 * 1000; // 30 minutes absolute minimum
     const minDuration = Math.max(calculatedMinDuration, absoluteMinDuration);
 
-    /**
-     * Optimization #1 & #3: Time-windowed DB query for availability slots
-     * Filters at database level: future slots + within time window
-     */
     const allSlots = await this.db.query.availability.findMany({
       where: and(
         gt(schema.availability.endTime, now), // Future slots only
@@ -493,10 +489,6 @@ export class BookingService {
     // Extract unique painter IDs
     const painterIds = [...new Set(allSlots.map((slot) => slot.painterId))];
 
-    /**
-     * Optimization #1: Time-windowed DB query for bookings
-     * Fetch only bookings within the time window + still in future
-     */
     const allBookings = await this.db.query.bookings.findMany({
       where: and(
         inArray(schema.bookings.painterId, painterIds),
@@ -506,10 +498,6 @@ export class BookingService {
       orderBy: (bookings, { asc }) => [asc(bookings.startTime)],
     });
 
-    /**
-     * Optimization #2: Pre-group bookings by painter
-     * Changes complexity from O(n × m) to O(n + m)
-     */
     const bookingsByPainter = allBookings.reduce(
       (acc, booking) => {
         (acc[booking.painterId] ||= []).push(booking);
@@ -518,10 +506,6 @@ export class BookingService {
       {} as Record<string, typeof allBookings>,
     );
 
-    /**
-     * Optimization #4: Optimized loop with pre-grouped bookings
-     * Uses O(n + m) complexity instead of O(n × m)
-     */
     const freeSlots: Array<{
       painterId: string;
       painterName: string;
