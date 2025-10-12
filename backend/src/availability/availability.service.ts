@@ -85,8 +85,8 @@ export class AvailabilityService {
    * - Saves ~5 database round-trips = ~5-50ms saved
    *
    * This approach is optimal for:
-   * - Small page sizes (5-10 slots)
-   * - Moderate booking counts (<1000 per painter)
+   * - Small page sizes (5-50 slots)
+   * - Moderate booking counts (<10 per painter)
    * - High network latency scenarios
    */
   async findMyAvailability(
@@ -134,8 +134,10 @@ export class AvailabilityService {
      *   Slot 1: Dec 20-22
      *   Slot 2: Dec 25-27
      *   Slot 3: Dec 30-31
-     *   → Query: bookings between Dec 20 and Dec 31
-     *   → May fetch extra bookings (Dec 23-24, 28-29) but still faster
+     *   → Query: ALL bookings between Dec 20 and Dec 31
+     *   → May fetch extra bookings in GAPS (e.g., Dec 23-24, 28-29)
+     *   → In-memory filter discards gap bookings, keeping only overlaps
+     *   → Still faster than 3 separate DB queries (1 query vs 3)
      */
     const minStartTime = availabilitySlots.reduce(
       (min, slot) => (slot.startTime < min ? slot.startTime : min),
