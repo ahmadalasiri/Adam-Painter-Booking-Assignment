@@ -73,20 +73,11 @@ export class BookingService {
       })
       .returning();
 
-    // Fetch painter details
-    const painter = await this.db.query.users.findFirst({
-      where: eq(schema.users.id, selectedPainter.id),
-      columns: {
-        id: true,
-        name: true,
-      },
-    });
-
     return {
       bookingId: booking.id,
       painter: {
-        id: painter!.id,
-        name: painter!.name,
+        id: selectedPainter.id,
+        name: selectedPainter.name,
       },
       startTime: booking.startTime,
       endTime: booking.endTime,
