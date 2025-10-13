@@ -176,34 +176,8 @@ export class BookingService {
 
   /**
    * Find painters available for the requested time slot
-   *
-   * Performance Optimization:
-   * - Uses 2 queries instead of N+1 (where N = number of available slots)
-   * - Batch query with IN clause for all conflicting bookings
-   * - In-memory filtering instead of N database queries
-   *
-   * Query Strategy:
-   * 1. Get all availability slots that cover the requested time
-   * 2. Single batch query: Get ALL conflicting bookings for ALL painters
-   * 3. In-memory grouping and filtering (O(n*m) where n=slots, m=bookings)
-   *
-   * Performance Gain:
-   * Before (N+1):
-   *   - Query 1: Availability slots → 5ms
-   *   - N queries: Check bookings per painter (5 painters × 3ms = 15ms)
-   *   - Total: 20ms
-   *
-   * After (batch query):
-   *   - Query 1: Availability slots → 5ms
-   *   - Query 2: ALL conflicting bookings (IN clause) → 5ms
-   *   - Memory filtering: 0.1ms
-   *   - Total: 10ms (50% faster)
-   *
-   * Why this works:
-   * - Single IN query fetches all bookings at once
-   * - Database handles filtering more efficiently than N queries
-   * - Memory grouping is trivial for small datasets
-   * - Scales better: 20 painters → 2 queries instead of 21
+   * Optimization: 2 queries instead of N+1 (batch query with IN clause + in-memory filtering)
+   * Performance: ~10ms vs ~20ms (50% faster)
    */
   private async findAvailablePainters(startTime: Date, endTime: Date) {
     // Find all availability slots that fully cover the requested time
@@ -288,43 +262,8 @@ export class BookingService {
   }
 
   /**
-   * Select a painter based on booking count strategy
-   *
-   * @param availablePainters - Array of available painters
-   * @param strategy - Selection strategy:
-   *   - 'most': Select painter with highest booking count (most requested)
-   *   - 'least': Select painter with lowest booking count (least requested)
-   *
-   * Performance Optimization:
-   * - Uses single GROUP BY query instead of N parallel queries
-   * - Reduces database connections and overhead
-   *
-   * Query Strategy:
-   * 1. Single GROUP BY query: Count bookings for all painters at once
-   * 2. In-memory mapping to include painters with zero bookings
-   * 3. Sort by booking count and ID (direction depends on strategy)
-   *
-   * Performance Gain:
-   * Before (N parallel queries):
-   *   - 5 parallel COUNT queries → 8ms (limited by slowest)
-   *   - 5 database connections
-   *   - Higher overhead
-   *
-   * After (single GROUP BY):
-   *   - 1 GROUP BY query → 5ms
-   *   - 1 database connection
-   *   - Database optimizes GROUP BY internally
-   *   - Total: 5ms (38% faster)
-   *
-   * Why this works:
-   * - GROUP BY aggregates counts in a single pass
-   * - Database engines are highly optimized for GROUP BY
-   * - Single connection = less network/connection overhead
-   * - Scales linearly: 20 painters still = 1 query
-   *
-   * Use Cases:
-   * - 'most': Distribute work to experienced/proven painters
-   * - 'least': Balance workload evenly across all painters
+   * Select painter by booking count ('most' = highest, 'least' = lowest)
+   * Optimization: Single GROUP BY query instead of N queries (~38% faster)
    */
   private async selectPainterByStrategy(
     availablePainters: Array<{ id: string; name: string }>,
@@ -352,18 +291,11 @@ export class BookingService {
       .where(inArray(schema.bookings.painterId, painterIds))
       .groupBy(schema.bookings.painterId);
 
-    /**
-     * Map booking counts to painters
-     * Note: Painters with 0 bookings won't appear in GROUP BY results,
-     * so we need to include them with count = 0
-     */
-    const countsMap = new Map(
-      bookingCounts.map((row) => [row.painterId, row.count]),
-    );
-
+    // Map booking counts to painters (GROUP BY doesn't return painters with 0 bookings)
     const painterBookingCounts = availablePainters.map((painter) => ({
       ...painter,
-      bookingCount: countsMap.get(painter.id) || 0,
+      bookingCount:
+        bookingCounts.find((row) => row.painterId === painter.id)?.count || 0,
     }));
 
     /**
