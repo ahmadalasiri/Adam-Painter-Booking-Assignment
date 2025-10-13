@@ -1,21 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import { availabilityAPI, PaginatedResponse } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import { Pagination } from "../components/Pagination";
 import { getErrorMessage } from "../utils/errorHandler";
+import { formatDateRange, getMinDateTime } from "../utils/dateUtils";
+import { useTimeValidation } from "../hooks/useTimeValidation";
 import type { Availability, Booking } from "../types";
-
-// Helper function to format date range
-const formatDateRange = (startDate: Date, endDate: Date): string => {
-  if (isSameDay(startDate, endDate)) {
-    return `${format(startDate, "MMMM do, p")} → ${format(endDate, "p")}`;
-  }
-  return `${format(startDate, "MMMM do, p")} → ${format(
-    endDate,
-    "MMMM do, p"
-  )}`;
-};
 
 // Timeline component for visualizing availability and bookings
 interface TimelineProps {
@@ -226,15 +217,12 @@ export const PainterDashboard = () => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [validationError, setValidationError] = useState("");
 
-  // Get current time in "YYYY-MM-DDTHH:mm" format for datetime-local input
-  const getMinDateTime = () => {
-    const now = new Date();
-    // Adjust for timezone to get local time in ISO format
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  };
+  // Time validation hook
+  const { validationError, validateTimes } = useTimeValidation(
+    startTime,
+    endTime
+  );
 
   const fetchData = useCallback(
     async (showLoadingIndicator = true, forceRefresh = false) => {
@@ -287,43 +275,6 @@ export const PainterDashboard = () => {
     showSuccess("Data refreshed!", 2000);
   };
 
-  // Validate time inputs
-  const validateTimes = useCallback(() => {
-    if (!startTime || !endTime) {
-      setValidationError("");
-      return false;
-    }
-
-    const now = new Date();
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    if (start <= now) {
-      setValidationError("⚠️ Start time must be in the future");
-      return false;
-    }
-
-    if (end <= now) {
-      setValidationError("⚠️ End time must be in the future");
-      return false;
-    }
-
-    if (end <= start) {
-      setValidationError("⚠️ End time must be after start time");
-      return false;
-    }
-
-    setValidationError("");
-    return true;
-  }, [startTime, endTime]);
-
-  // Validate whenever times change
-  useEffect(() => {
-    if (startTime || endTime) {
-      validateTimes();
-    }
-  }, [startTime, endTime, validateTimes]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -346,7 +297,6 @@ export const PainterDashboard = () => {
       // Clear form
       setStartTime("");
       setEndTime("");
-      setValidationError("");
 
       // Smart cache handling based on current page
       if (availabilityPage === 1) {
