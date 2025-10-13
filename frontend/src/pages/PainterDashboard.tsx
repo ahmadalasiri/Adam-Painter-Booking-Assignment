@@ -9,9 +9,12 @@ import type { Availability, Booking } from "../types";
 // Helper function to format date range
 const formatDateRange = (startDate: Date, endDate: Date): string => {
   if (isSameDay(startDate, endDate)) {
-    return `${format(startDate, "PPP p")} → ${format(endDate, "p")}`;
+    return `${format(startDate, "MMMM do, p")} → ${format(endDate, "p")}`;
   }
-  return `${format(startDate, "PPP p")} → ${format(endDate, "PPP p")}`;
+  return `${format(startDate, "MMMM do, p")} → ${format(
+    endDate,
+    "MMMM do, p"
+  )}`;
 };
 
 // Note: Bookings are now included directly in each availability object
@@ -669,7 +672,7 @@ export const PainterDashboard = () => {
                                     Booked on:{" "}
                                     {format(
                                       new Date(booking.createdAt),
-                                      "PPP 'at' p"
+                                      "MMMM do 'at' p"
                                     )}
                                   </p>
                                 </div>

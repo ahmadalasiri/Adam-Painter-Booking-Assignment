@@ -9,9 +9,12 @@ import type { Booking, AvailabilityRecommendation } from "../types";
 // Helper function to format date range
 const formatDateRange = (startDate: Date, endDate: Date): string => {
   if (isSameDay(startDate, endDate)) {
-    return `${format(startDate, "PPP p")} → ${format(endDate, "p")}`;
+    return `${format(startDate, "MMMM do, p")} → ${format(endDate, "p")}`;
   }
-  return `${format(startDate, "PPP p")} → ${format(endDate, "PPP p")}`;
+  return `${format(startDate, "MMMM do, p")} → ${format(
+    endDate,
+    "MMMM do, p"
+  )}`;
 };
 
 // Helper function to format duration in hours
@@ -79,7 +82,9 @@ export const CustomerDashboard = () => {
           );
         }
       } catch (err: any) {
-        showError(getErrorMessage(err, "Failed to load bookings. Please try again."));
+        showError(
+          getErrorMessage(err, "Failed to load bookings. Please try again.")
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -291,7 +296,8 @@ export const CustomerDashboard = () => {
                       🎨 {rec.painterName}
                     </p>
                     <p className="text-sm text-gray-600">
-                      📅 {formatDateRange(
+                      📅{" "}
+                      {formatDateRange(
                         new Date(rec.startTime),
                         new Date(rec.endTime)
                       )}
@@ -449,7 +455,7 @@ export const CustomerDashboard = () => {
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
                     Booked on:{" "}
-                    {format(new Date(booking.createdAt), "PPP 'at' p")}
+                    {format(new Date(booking.createdAt), "MMMM do 'at' p")}
                   </p>
                 </div>
               ))}
