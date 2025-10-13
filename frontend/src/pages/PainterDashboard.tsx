@@ -17,9 +17,6 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
   )}`;
 };
 
-// Note: Bookings are now included directly in each availability object
-// from the backend API (availability.bookings)
-
 // Timeline component for visualizing availability and bookings
 interface TimelineProps {
   availability: Availability;
@@ -231,9 +228,10 @@ export const PainterDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState("");
 
-  // Get current time for min attribute (formatted for datetime-local input)
+  // Get current time in "YYYY-MM-DDTHH:mm" format for datetime-local input
   const getMinDateTime = () => {
     const now = new Date();
+    // Adjust for timezone to get local time in ISO format
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     return now.toISOString().slice(0, 16);
   };
