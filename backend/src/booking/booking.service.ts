@@ -325,7 +325,9 @@ export class BookingService {
    * - Database-level filtering (past slots + time window)
    *
    * Environment Variables:
-   * - RECOMMENDATION_WINDOW_DAYS: Days ahead to search (default: 7)
+   * - RECOMMENDATION_WINDOW_DAYS: Days to search before/after requested time (default: 7)
+   *   Example: 7 days = searches 7 days before and 7 days after (max 14 day window)
+   *   Note: Never searches in the past (window start = max(now, requestedTime - X days))
    * - MIN_SLOT_DURATION_PERCENT: Minimum slot duration as % of requested (default: 50)
    *   Example: For 2h request with 50%, only return slots >= 1h
    *
@@ -357,25 +359,28 @@ export class BookingService {
     const requestedDuration = endTime.getTime() - startTime.getTime();
     const now = new Date();
 
-    // Get time window from environment (default: 7 days)
+    // Get time window: search X days before and after requested time (but not in the past)
     const windowDays = Math.max(
       1,
       this.configService.get<number>('RECOMMENDATION_WINDOW_DAYS', 7),
     );
+    const windowStart = new Date(
+      Math.max(
+        now.getTime(), // Don't search in the past
+        startTime.getTime() - windowDays * 24 * 60 * 60 * 1000, // X days before requested
+      ),
+    );
     const windowEnd = new Date(
-      startTime.getTime() + windowDays * 24 * 60 * 60 * 1000,
+      startTime.getTime() + windowDays * 24 * 60 * 60 * 1000, // X days after requested
     );
 
     /**
      * Calculate minimum acceptable slot duration
      * Based on percentage of requested duration (configurable)
      *
-     * Examples:
+     * Example:
      * - Requested: 2h, Percent: 50% → Min: 1h (makes sense)
-     * - Requested: 4h, Percent: 50% → Min: 2h (reasonable alternative)
-     * - Requested: 30min, Percent: 50% → Min: 15min (still useful)
      *
-     * Minimum absolute duration: 30 minutes (prevents tiny slots)
      */
     const minDurationPercent = Math.max(
       1,
@@ -392,7 +397,8 @@ export class BookingService {
     const allSlots = await this.db.query.availability.findMany({
       where: and(
         gt(schema.availability.endTime, now), // Future slots only
-        lte(schema.availability.startTime, windowEnd), // Within time window
+        gte(schema.availability.startTime, windowStart), // Window start
+        lte(schema.availability.startTime, windowEnd), // Window end
       ),
       with: {
         painter: {
@@ -416,7 +422,8 @@ export class BookingService {
       where: and(
         inArray(schema.bookings.painterId, painterIds),
         gt(schema.bookings.endTime, now), // Still in future
-        lte(schema.bookings.startTime, windowEnd), // Within time window
+        gte(schema.bookings.startTime, windowStart), // Window start
+        lte(schema.bookings.startTime, windowEnd), // Window end
       ),
       orderBy: (bookings, { asc }) => [asc(bookings.startTime)],
     });
