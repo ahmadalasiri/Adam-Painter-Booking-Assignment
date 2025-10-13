@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { eq, and, lte, gte, sql, or, gt, inArray } from 'drizzle-orm';
+import { eq, and, lte, gte, sql, or, inArray } from 'drizzle-orm';
 import { DB_CONNECTION } from '../db/db.module';
 import * as schema from '../db/schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -330,6 +330,8 @@ export class BookingService {
    *   Note: Never searches in the past (window start = max(now, requestedTime - X days))
    * - MIN_SLOT_DURATION_PERCENT: Minimum slot duration as % of requested (default: 50)
    *   Example: For 2h request with 50%, only return slots >= 1h
+   * - MIN_SLOT_DURATION_MINUTES: Absolute minimum slot duration in minutes (default: 30)
+   * - MAX_RECOMMENDATIONS: Maximum number of alternative slots to return (default: 10)
    *
    * Query Strategy:
    * 1. Get future slots within time window (DB filtered)
@@ -391,13 +393,16 @@ export class BookingService {
     );
     const calculatedMinDuration =
       requestedDuration * (minDurationPercent / 100);
-    const absoluteMinDuration = 30 * 60 * 1000; // 30 minutes absolute minimum
+    const absoluteMinMinutes = this.configService.get<number>(
+      'MIN_SLOT_DURATION_MINUTES',
+      30,
+    );
+    const absoluteMinDuration = absoluteMinMinutes * 60 * 1000; // Convert minutes to milliseconds
     const minDuration = Math.max(calculatedMinDuration, absoluteMinDuration);
 
     const allSlots = await this.db.query.availability.findMany({
       where: and(
-        gt(schema.availability.endTime, now), // Future slots only
-        gte(schema.availability.startTime, windowStart), // Window start
+        gte(schema.availability.startTime, windowStart), // Window start (windowStart >= now)
         lte(schema.availability.startTime, windowEnd), // Window end
       ),
       with: {
@@ -421,8 +426,7 @@ export class BookingService {
     const allBookings = await this.db.query.bookings.findMany({
       where: and(
         inArray(schema.bookings.painterId, painterIds),
-        gt(schema.bookings.endTime, now), // Still in future
-        gte(schema.bookings.startTime, windowStart), // Window start
+        gte(schema.bookings.startTime, windowStart), // Window start (windowStart >= now)
         lte(schema.bookings.startTime, windowEnd), // Window end
       ),
       orderBy: (bookings, { asc }) => [asc(bookings.startTime)],
@@ -525,14 +529,18 @@ export class BookingService {
       return b.duration - a.duration;
     });
 
-    // Return top 10 recommendations
-    return freeSlots.slice(0, 10).map((slot) => ({
+    // Return top N recommendations (configurable)
+    const maxRecommendations = this.configService.get<number>(
+      'MAX_RECOMMENDATIONS',
+      10,
+    );
+    return freeSlots.slice(0, maxRecommendations).map((slot) => ({
       painterId: slot.painterId,
       painterName: slot.painterName,
       startTime: slot.startTime,
       endTime: slot.endTime,
-      duration: slot.duration, // Duration in milliseconds
-      distanceFromRequested: slot.distanceFromRequested, // Distance in milliseconds
+      duration: slot.duration,
+      distanceFromRequested: slot.distanceFromRequested,
     }));
   }
 
@@ -559,7 +567,6 @@ export class BookingService {
         // End 1 minute before the booking to avoid touching it
         const freeEnd = new Date(booking.startTime.getTime() - 60000); // Subtract 1 minute
 
-        // Only add if there's meaningful free time (at least 1 minute)
         if (currentStart < freeEnd) {
           freeRanges.push({
             start: currentStart,
