@@ -601,6 +601,8 @@ export class BookingService {
       painterName: slot.painterName,
       startTime: slot.startTime,
       endTime: slot.endTime,
+      duration: slot.duration, // Duration in milliseconds
+      distanceFromRequested: slot.distanceFromRequested, // Distance in milliseconds
     }));
   }
 

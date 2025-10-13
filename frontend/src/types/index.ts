@@ -52,4 +52,6 @@ export interface AvailabilityRecommendation {
   painterName: string;
   startTime: string;
   endTime: string;
+  duration: number; // Duration in milliseconds
+  distanceFromRequested: number; // Distance from requested time in milliseconds
 }
