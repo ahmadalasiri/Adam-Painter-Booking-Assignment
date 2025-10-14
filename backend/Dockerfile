@@ -1,5 +1,5 @@
 # Backend Dockerfile
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -16,15 +16,15 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --production
+# Install all dependencies
+RUN npm ci
 
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
