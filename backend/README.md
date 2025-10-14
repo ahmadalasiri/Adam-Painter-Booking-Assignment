@@ -32,7 +32,7 @@ The `.env` file should already be created with default values:
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/painter_booking
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 JWT_EXPIRES_IN=7d
-PORT=3000
+PORT=3001
 ```
 
 **Important**: Update the `DATABASE_URL` with your PostgreSQL credentials if different from defaults.
@@ -53,7 +53,7 @@ This will create all necessary tables (users, availability, bookings).
 npm run start:dev
 ```
 
-The API will be available at `http://localhost:3000`.
+The API will be available at `http://localhost:3001`.
 
 ## API Endpoints
 

@@ -107,7 +107,7 @@ npm run db:push
 npm run start:dev
 ```
 
-The backend will run on `http://localhost:3000`
+The backend will run on `http://localhost:3001`
 
 ### 3. Frontend Setup
 
@@ -151,7 +151,7 @@ docker-compose down
 **Access:**
 
 - Frontend: http://localhost
-- Backend API: http://localhost:3000
+- Backend API: http://localhost:3001
 - Database runs internally
 
 **For detailed Docker instructions, see:** [DOCKER.md](DOCKER.md)
@@ -317,14 +317,14 @@ npm run build
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/painter_booking
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 JWT_EXPIRES_IN=7d
-PORT=3000
+PORT=3001
 CORS_ORIGINS=http://localhost:5173,http://localhost:3001
 ```
 
 ### Frontend (.env)
 
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:3001
 ```
 
 ## 🐛 Troubleshooting
@@ -337,7 +337,7 @@ VITE_API_URL=http://localhost:3000
 
 ### Frontend won't connect to backend
 
-- Ensure backend is running on port 3000
+- Ensure backend is running on port 3001
 - Check VITE_API_URL in frontend/.env
 - Clear browser cache and reload
 

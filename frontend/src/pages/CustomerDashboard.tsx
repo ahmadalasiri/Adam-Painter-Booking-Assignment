@@ -235,7 +235,7 @@ export const CustomerDashboard = () => {
                       setRecommendations([]);
                       showSuccess(
                         "Time slot selected! Click 'Request Booking' to confirm.",
-                        3000
+                        3001
                       );
                     }}
                   >

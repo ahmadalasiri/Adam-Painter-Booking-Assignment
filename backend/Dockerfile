@@ -32,7 +32,7 @@ COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3001
 
 # Start application (migrations run first)
 CMD ["sh", "-c", "npm run db:migrate && npm run start:prod"]

@@ -1,5 +1,5 @@
 ### Variables
-@baseUrl = http://localhost:3000/api/v1
+@baseUrl = http://localhost:3001/api/v1
 @contentType = application/json
 
 ### Register as Painter

@@ -85,7 +85,7 @@ The backend uses the following environment variables that affect API behavior:
 Each file has variables at the top:
 
 ```http
-@baseUrl = http://localhost:3000
+@baseUrl = http://localhost:3001
 @contentType = application/json
 @painterToken = YOUR_TOKEN_HERE
 ```

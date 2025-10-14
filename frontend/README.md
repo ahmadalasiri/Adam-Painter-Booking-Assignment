@@ -6,7 +6,7 @@ React + TypeScript + Tailwind CSS frontend for the painter booking system.
 
 - Node.js (v18 or higher)
 - npm or yarn
-- Backend API running on `http://localhost:3000`
+- Backend API running on `http://localhost:3001`
 
 ## Setup Instructions
 
@@ -21,7 +21,7 @@ npm install
 The `.env` file should already be created. It contains:
 
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:3001
 ```
 
 Update this if your backend is running on a different port.
