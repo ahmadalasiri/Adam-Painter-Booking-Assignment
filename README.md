@@ -2,6 +2,8 @@
 
 A full-stack web application that allows customers to request painting services and automatically assigns the most requested painters based on availability.
 
+**🌐 Live Demo:** [https://adam.ahmadalasiri.info](https://adam.ahmadalasiri.info)
+
 ## 🚀 Tech Stack
 
 ### Backend
@@ -312,3 +314,13 @@ CORS_ORIGINS=http://localhost:5173,http://localhost:3001
 ```env
 VITE_API_URL=http://localhost:3001
 ```
+
+## 🌐 Production Deployment
+
+Deploying to Contabo VPS with:
+
+- Docker & Docker Compose
+- Nginx reverse proxy
+- SSL certificates (Let's Encrypt)
+- Domain configuration
+- Production best practices
