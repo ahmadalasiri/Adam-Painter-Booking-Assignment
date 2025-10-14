@@ -30,6 +30,7 @@ RUN npm ci
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
 
 # Expose port
 EXPOSE 3001
