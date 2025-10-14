@@ -1,13 +1,13 @@
 # Frontend Dockerfile
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies including serve for production
+RUN npm ci && npm install -g serve
 
 # Copy source code
 COPY . .
@@ -19,18 +19,9 @@ ENV VITE_API_URL=$VITE_API_URL
 # Build application
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
-
-# Copy built application
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
 # Expose port
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Serve the built application
+CMD ["serve", "-s", "dist", "-l", "80"]
 
