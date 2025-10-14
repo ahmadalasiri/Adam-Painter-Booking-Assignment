@@ -317,45 +317,12 @@ export class BookingService {
   }
 
   /**
-   * Find closest available time slots when no painters are available
+   * Find closest available slots when no painters available
    *
-   * Performance Optimizations (3 major improvements):
-   * - Time-windowed queries (configurable via RECOMMENDATION_WINDOW_DAYS env)
-   * - Pre-grouped bookings by painter (O(n+m) vs O(n×m))
-   * - Database-level filtering (past slots + time window)
+   * Env vars: RECOMMENDATION_WINDOW_DAYS (7), MIN_SLOT_DURATION_PERCENT (50),
+   *           MIN_SLOT_DURATION_MINUTES (30), MAX_RECOMMENDATIONS (10)
    *
-   * Environment Variables:
-   * - RECOMMENDATION_WINDOW_DAYS: Days to search before/after requested time (default: 7)
-   *   Example: 7 days = searches 7 days before and 7 days after (max 14 day window)
-   *   Note: Never searches in the past (window start = max(now, requestedTime - X days))
-   * - MIN_SLOT_DURATION_PERCENT: Minimum slot duration as % of requested (default: 50)
-   *   Example: For 2h request with 50%, only return slots >= 1h
-   * - MIN_SLOT_DURATION_MINUTES: Absolute minimum slot duration in minutes (default: 30)
-   * - MAX_RECOMMENDATIONS: Maximum number of alternative slots to return (default: 10)
-   *
-   * Query Strategy:
-   * 1. Get future slots within time window (DB filtered)
-   * 2. Get bookings within time window (DB filtered)
-   * 3. Pre-group bookings by painter (O(m))
-   * 4. Loop: Calculate free ranges per slot (O(n + m) total)
-   * 5. Filter by minimum duration (% of requested)
-   * 6. Sort and return top 10 closest
-   *
-   * Performance Gain:
-   * Before:
-   *   - All future slots + All bookings
-   *   - O(n × m) filtering per slot
-   *   - Total: ~16-20ms for 20 slots
-   *
-   * After:
-   *   - Windowed slots + Windowed bookings
-   *   - O(n + m) pre-grouped filtering
-   *   - Total: ~5-8ms for 20 slots (60-70% faster)
-   *
-   * Complexity:
-   * - Time: O(m + n × p + n log n) where:
-   *   - m = bookings, n = slots, p = avg bookings per slot
-   * - Space: O(m + n)
+   * Optimization: Time-windowed queries + pre-grouped bookings (60-70% faster)
    */
   private async findClosestAvailableSlots(startTime: Date, endTime: Date) {
     const requestedDuration = endTime.getTime() - startTime.getTime();
@@ -469,14 +436,7 @@ export class BookingService {
 
       // Process all free ranges
       for (const range of freeRanges) {
-        // Skip ranges that have already ended
-        if (range.end <= now) {
-          continue;
-        }
-
-        // Adjust range start if it's in the past
-        const adjustedStart = range.start < now ? now : range.start;
-        const rangeDuration = range.end.getTime() - adjustedStart.getTime();
+        const rangeDuration = range.end.getTime() - range.start.getTime();
 
         /**
          * Filter by minimum duration (dynamic based on requested duration)
@@ -495,18 +455,18 @@ export class BookingService {
         if (range.end <= startTime) {
           // Range is completely before requested time
           distance = startTime.getTime() - range.end.getTime();
-        } else if (adjustedStart >= endTime) {
+        } else if (range.start >= endTime) {
           // Range is completely after requested time
-          distance = adjustedStart.getTime() - endTime.getTime();
+          distance = range.start.getTime() - endTime.getTime();
         } else {
           // Range overlaps with requested time - use start time distance
-          distance = Math.abs(adjustedStart.getTime() - startTime.getTime());
+          distance = Math.abs(range.start.getTime() - startTime.getTime());
         }
 
         freeSlots.push({
           painterId: slot.painterId,
           painterName: slot.painter.name,
-          startTime: adjustedStart,
+          startTime: range.start,
           endTime: range.end,
           duration: rangeDuration,
           distanceFromRequested: distance,
