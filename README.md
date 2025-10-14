@@ -9,7 +9,7 @@ A full-stack web application that allows customers to request painting services 
 - **NestJS** - Progressive Node.js framework
 - **PostgreSQL** - Relational database
 - **Drizzle ORM** - TypeScript ORM
-- **JWT** - Authentication (without Passport)
+- **JWT** - Authentication
 - **TypeScript** - Type safety
 
 ### Frontend
@@ -29,16 +29,18 @@ When a customer requests a booking, the system:
 
 1. Finds all painters with availability covering the requested time
 2. Filters out painters with conflicting bookings
-3. **Selects the painter with the most bookings** (most requested painter)
+3. **Selects the best painter** using booking count as quality metric
 4. Automatically creates and confirms the booking
 
-### Bonus: Closest Available Slot Recommendations
+### Bonus: Smart Recommendations Engine
 
-If no painters are available, the system recommends:
+If no painters are available, the system recommends alternative slots:
 
-- Up to 3 available slots after the requested time
-- Up to 3 available slots before the requested time
-- Each recommendation includes painter name and time details
+- **Bidirectional search**: Looks before AND after requested time
+- **Configurable window**: Search up to N days (default: 7)
+- **Quality filtering**: Only shows slots meeting minimum duration
+- **Smart sorting**: Closest matches first, full-duration slots prioritized
+- **Configurable limit**: Return top N recommendations (default: 10)
 
 ### Authentication & Authorization
 
@@ -51,26 +53,31 @@ If no painters are available, the system recommends:
 
 ```
 🎨 Adam Painter Booking Assignment/
-├── backend/                # NestJS backend
+├── backend/                  # NestJS backend
 │   ├── src/
-│   │   ├── auth/          # Authentication module
-│   │   ├── availability/  # Painter availability module
-│   │   ├── booking/       # Booking module
-│   │   ├── db/            # Database schema and connection
-│   │   └── main.ts        # Entry point
-│   ├── drizzle/           # Database migrations
-│   └── .env               # Environment variables
+│   │   ├── auth/            # Authentication (JWT, guards, decorators)
+│   │   ├── availability/    # Painter availability management
+│   │   ├── booking/         # Booking & recommendation engine
+│   │   ├── db/              # Database schema with indexes
+│   │   └── main.ts          # Application entry point
+│   ├── drizzle/             # Database migrations
+│   └── Dockerfile           # Production container
 │
-├── frontend/              # React frontend
+├── frontend/                # React 19 + TypeScript
 │   ├── src/
-│   │   ├── components/    # Reusable components
-│   │   ├── context/       # Auth context
-│   │   ├── pages/         # Page components
-│   │   ├── services/      # API services
-│   │   └── types/         # TypeScript types
-│   └── .env               # Environment variables
+│   │   ├── components/      # Reusable UI components
+│   │   ├── context/         # Auth & Toast contexts
+│   │   ├── pages/           # Dashboard pages
+│   │   ├── services/        # API client (Axios)
+│   │   └── types/           # TypeScript interfaces
+│   └── Dockerfile           # Production container
 │
-└── README.md              # This file
+├── docs/                    # Documentation
+│   └── DOCKER.md            # Docker deployment guide
+│
+├── .env.example             # Environment template
+├── docker-compose.yml       # Production deployment
+└── README.md                # This file
 ```
 
 ## 🛠️ Setup Instructions
@@ -138,8 +145,17 @@ Open your browser and navigate to: `http://localhost:5173`
 ### Quick Start with Docker
 
 ```bash
-# Start everything (database + backend + frontend)
+# 1. Create .env file (copy from example)
+cp .env.example .env
+
+# 2. Edit .env and change JWT_SECRET (important!)
+nano .env
+
+# 3. Start everything (database + backend + frontend)
 docker-compose up -d
+
+# 4. Run database migrations (first time only)
+docker-compose exec backend npm run db:migrate
 
 # View logs
 docker-compose logs -f
@@ -154,7 +170,7 @@ docker-compose down
 - Backend API: http://localhost:3001
 - Database runs internally
 
-**For detailed Docker instructions, see:** [DOCKER.md](DOCKER.md)
+**For detailed Docker instructions, see:** [docs/DOCKER.md](docs/DOCKER.md)
 
 ---
 
@@ -203,24 +219,25 @@ docker-compose down
 
 ## 💡 Implementation Highlights
 
-### Painter Selection Algorithm
+### Painter Selection Algorithm ("Best Painter" Strategy)
 
-The system implements a sophisticated painter selection strategy:
+The system implements a smart painter selection strategy using **booking count** as the quality metric:
 
 ```typescript
 // 1. Find all painters with availability covering the requested time
 // 2. Filter out painters with conflicting bookings
 // 3. Count total bookings for each available painter
-// 4. Select painter with the highest booking count (most requested)
+// 4. Select painter with the highest booking count (most experienced)
 // 5. Use ID for tie-breaking to ensure consistent selection
 ```
 
-**Rationale**: Assigning the most requested painter ensures:
+**Why booking count as "best painter" criteria:**
 
-- Popular painters stay busy and satisfied
-- Customers get experienced, proven painters
-- Natural quality indicator through booking frequency
-- Fair distribution over time as new painters build reputation
+- More bookings = more experience and proven track record
+- Ensures experienced painters stay busy and satisfied
+- Natural quality indicator that customers can trust
+- Fair distribution: new painters build reputation over time
+- Objective, measurable metric without bias
 
 ### Database Schema
 
@@ -241,29 +258,6 @@ The system implements a sophisticated painter selection strategy:
 - Tracks booking status
 - Maintains booking history for selection algorithm
 
-## 🧪 Testing the System
-
-### Test Scenario
-
-1. **Create 2 Painters**:
-
-   - Painter A: Add availability 2025-10-15 10:00 - 18:00
-   - Painter B: Add availability 2025-10-15 10:00 - 18:00
-
-2. **Create 1 Customer**:
-
-   - Request booking 2025-10-15 11:00 - 13:00
-   - System assigns Painter A or B (both have 0 bookings)
-
-3. **Create Another Customer**:
-
-   - Request booking 2025-10-15 14:00 - 16:00
-   - System assigns based on booking count
-
-4. **Test No Availability**:
-   - Request booking for time with no painter availability
-   - Receive recommendations for closest available slots
-
 ## 📦 Production Deployment
 
 ### Backend
@@ -282,42 +276,34 @@ npm run build
 # Serve the dist/ folder with any static file server
 ```
 
-## 🔒 Security Features
-
-- JWT tokens with configurable expiration
-- Password hashing with bcrypt (10 rounds)
-- Role-based access control
-- Protected API endpoints
-- CORS configuration
-- Input validation with class-validator
-
-## 🎨 UI/UX Features
-
-- Modern gradient design with smooth animations
-- Responsive layout (mobile-friendly)
-- **Toast notification system** - Auto-dismissing, elegant notifications
-- **Optimistic updates** - Instant feedback without page reloads
-- **Smart refresh** - Manual refresh without full page reload
-- Loading states with contextual messages
-- Error handling with user feedback
-- Success notifications
-- **Clickable recommendations** - One-click booking from suggestions
-- Color-coded status badges
-- Smooth transitions and hover effects
-- Form validation with visual feedback
-- Empty state illustrations
-
-**See [FRONTEND_IMPROVEMENTS.md](FRONTEND_IMPROVEMENTS.md) for detailed UX improvements**
-
 ## 📝 Environment Variables
 
 ### Backend (.env)
 
 ```env
+# Database
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/painter_booking
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=painter_booking
+POSTGRES_PORT=5432
+
+# Server
+PORT=3001
+NODE_ENV=development
+BACKEND_PORT=3001
+
+# Authentication (⚠️ CHANGE IN PRODUCTION!)
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 JWT_EXPIRES_IN=7d
-PORT=3001
+
+# Recommendation Engine
+RECOMMENDATION_WINDOW_DAYS=7          # Days to search before/after requested time
+MIN_SLOT_DURATION_PERCENT=50          # Minimum slot size as % of requested
+MIN_SLOT_DURATION_MINUTES=30          # Absolute minimum slot duration
+MAX_RECOMMENDATIONS=10                 # Maximum alternative slots to return
+
+# CORS
 CORS_ORIGINS=http://localhost:5173,http://localhost:3001
 ```
 
@@ -326,36 +312,3 @@ CORS_ORIGINS=http://localhost:5173,http://localhost:3001
 ```env
 VITE_API_URL=http://localhost:3001
 ```
-
-## 🐛 Troubleshooting
-
-### Backend won't start
-
-- Ensure PostgreSQL is running
-- Check database credentials in backend/.env
-- Run `npm run db:push` to create tables
-
-### Frontend won't connect to backend
-
-- Ensure backend is running on port 3001
-- Check VITE_API_URL in frontend/.env
-- Clear browser cache and reload
-
-### Database errors
-
-- Verify PostgreSQL is running
-- Check database exists: `painter_booking`
-- Reset database: Drop and recreate, then run `npm run db:push`
-
-## 📄 License
-
-This project is part of the Adam Painter Booking Assignment.
-
-## 👨‍💻 Development Notes
-
-- Backend uses NestJS without Passport (custom JWT implementation)
-- Smart painter assignment prioritizes most requested painters
-- Bonus feature: Closest slot recommendations implemented
-- Clean, modern UI with Tailwind CSS
-- Full TypeScript coverage for type safety
-- Role-based dashboards with different features
