@@ -165,15 +165,6 @@ docker-compose logs -f
 # Stop everything
 docker-compose down
 ```
-
-**Access:**
-
-- Frontend: http://localhost
-- Backend API: http://localhost:3001
-- Database runs internally
-
-**For detailed Docker instructions, see:** [docs/DOCKER.md](docs/DOCKER.md)
-
 ---
 
 ## 📖 Usage Guide
