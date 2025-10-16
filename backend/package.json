@@ -22,7 +22,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:drop": "drizzle-kit drop"
+    "db:drop": "drizzle-kit drop",
+    "db:seed": "ts-node src/db/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
