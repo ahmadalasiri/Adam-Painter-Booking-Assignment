@@ -4,7 +4,11 @@ import { availabilityAPI, PaginatedResponse } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import { Pagination } from "../components/Pagination";
 import { getErrorMessage } from "../utils/errorHandler";
-import { formatDateRange, getMinDateTime } from "../utils/dateUtils";
+import {
+  formatDateRange,
+  formatDuration,
+  getMinDateTime,
+} from "../utils/dateUtils";
 import { useTimeValidation } from "../hooks/useTimeValidation";
 import type { Availability, Booking } from "../types";
 
@@ -120,12 +124,7 @@ const AvailabilityTimeline = ({ availability, bookings }: TimelineProps) => {
                 {formatDateRange(segment.start, segment.end)}
               </div>
               <div className="text-xs mt-1 text-green-200">
-                Duration:{" "}
-                {Math.round(
-                  (segment.end.getTime() - segment.start.getTime()) /
-                    (1000 * 60 * 60)
-                )}{" "}
-                hours
+                Duration: {formatDuration(segment.start, segment.end)}
               </div>
               <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-green-700"></div>
             </div>
@@ -485,9 +484,6 @@ export const PainterDashboard = () => {
                 const slotBookings = slot.bookings || [];
                 const startDate = new Date(slot.startTime);
                 const endDate = new Date(slot.endTime);
-                const durationHours = Math.round(
-                  (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
-                );
 
                 return (
                   <div
@@ -500,8 +496,7 @@ export const PainterDashboard = () => {
                           📅 {formatDateRange(startDate, endDate)}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
-                          ⏱️ Duration: {durationHours} hour
-                          {durationHours !== 1 ? "s" : ""}
+                          ⏱️ Duration: {formatDuration(startDate, endDate)}
                           {slotBookings.length > 0 && (
                             <span className="ml-3 text-orange-600 font-medium">
                               • {slotBookings.length} booking
@@ -601,19 +596,10 @@ export const PainterDashboard = () => {
                                   {/* Duration */}
                                   <p className="text-xs text-gray-600 ml-6 mb-1">
                                     ⏱️ Duration:{" "}
-                                    {Math.round(
-                                      (new Date(booking.endTime).getTime() -
-                                        new Date(booking.startTime).getTime()) /
-                                        (1000 * 60 * 60)
-                                    )}{" "}
-                                    hour
-                                    {Math.round(
-                                      (new Date(booking.endTime).getTime() -
-                                        new Date(booking.startTime).getTime()) /
-                                        (1000 * 60 * 60)
-                                    ) !== 1
-                                      ? "s"
-                                      : ""}
+                                    {formatDuration(
+                                      new Date(booking.startTime),
+                                      new Date(booking.endTime)
+                                    )}
                                   </p>
                                   {/* Booked Date */}
                                   <p className="text-xs text-gray-500 ml-6">

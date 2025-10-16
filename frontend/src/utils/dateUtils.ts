@@ -15,14 +15,24 @@ export const formatDateRange = (startDate: Date, endDate: Date): string => {
 };
 
 /**
- * Format duration in hours
- * Example: "2 hours"
+ * Format duration accurately in hours and minutes
+ * Examples: "43 minutes", "1 hour 15 minutes", "2 hours"
  */
 export const formatDuration = (startDate: Date, endDate: Date): string => {
-  const durationHours = Math.round(
-    (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
-  );
-  return `${durationHours} hour${durationHours !== 1 ? "s" : ""}`;
+  const durationMs = endDate.getTime() - startDate.getTime();
+  const totalMinutes = Math.floor(durationMs / (1000 * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+  } else if (minutes === 0) {
+    return `${hours} hour${hours !== 1 ? "s" : ""}`;
+  } else {
+    return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${
+      minutes !== 1 ? "s" : ""
+    }`;
+  }
 };
 
 /**
