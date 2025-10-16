@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Inject,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { eq, and, lte, gte, sql, or, inArray } from 'drizzle-orm';
@@ -30,11 +25,6 @@ export class BookingService {
   ) {
     const startTime = new Date(createBookingDto.startTime);
     const endTime = new Date(createBookingDto.endTime);
-
-    // Validate time range
-    if (startTime >= endTime) {
-      throw new BadRequestException('Start time must be before end time');
-    }
 
     // Find painters with availability that covers the requested time
     const availablePainters = await this.findAvailablePainters(
@@ -204,7 +194,6 @@ export class BookingService {
     /**
      * Batch query: Fetch ALL conflicting bookings for ALL painters at once
      * Instead of N queries (one per painter), we use a single query with IN clause
-     *
      * Example:
      *   5 painters → 1 query with IN (painter1, painter2, ..., painter5)
      *   vs old approach: 5 separate queries

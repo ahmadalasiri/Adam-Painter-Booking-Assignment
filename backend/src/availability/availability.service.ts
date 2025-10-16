@@ -20,11 +20,6 @@ export class AvailabilityService {
     const startTime = new Date(createAvailabilityDto.startTime);
     const endTime = new Date(createAvailabilityDto.endTime);
 
-    // Validate time range
-    if (startTime >= endTime) {
-      throw new BadRequestException('Start time must be before end time');
-    }
-
     // Check for overlapping availability
     const overlappingSlots = await this.db.query.availability.findMany({
       where: and(
@@ -83,11 +78,6 @@ export class AvailabilityService {
    * - Memory filtering: ~0.001ms per comparison
    * - For 5 slots × 50 bookings = 250 comparisons ≈ 0.25ms
    * - Saves ~5 database round-trips = ~5-50ms saved
-   *
-   * This approach is optimal for:
-   * - Small page sizes (5-50 slots)
-   * - Moderate booking counts (<10 per painter)
-   * - High network latency scenarios
    */
   async findMyAvailability(
     painterId: string,
@@ -135,14 +125,12 @@ export class AvailabilityService {
      *   Slot 2: Dec 25-27
      *   Slot 3: Dec 30-31
      *   → Query: ALL bookings between Dec 20 and Dec 31
-     *   → May fetch extra bookings in GAPS (e.g., Dec 23-24, 28-29)
-     *   → In-memory filter discards gap bookings, keeping only overlaps
      *   → Still faster than 3 separate DB queries (1 query vs 3)
      */
-    const minStartTime = availabilitySlots.reduce(
-      (min, slot) => (slot.startTime < min ? slot.startTime : min),
-      availabilitySlots[0].startTime,
-    );
+    // Optimized: Use sorted order (DESC by startTime) - last element has min startTime
+    const minStartTime =
+      availabilitySlots[availabilitySlots.length - 1].startTime;
+    // Still need iteration for maxEndTime (not sorted by endTime)
     const maxEndTime = availabilitySlots.reduce(
       (max, slot) => (slot.endTime > max ? slot.endTime : max),
       availabilitySlots[0].endTime,
@@ -179,11 +167,6 @@ export class AvailabilityService {
      * - Total time: 250 × 0.001ms = 0.25ms
      * - Compare to: 5 DB queries × 3ms = 15ms
      * - Net gain: 14.75ms (98% faster)
-     *
-     * Why this is acceptable:
-     * - Memory operations are ~10,000x faster than DB I/O
-     * - Small datasets: 5 slots × 50 bookings = trivial
-     * - No N+1 problem: scales linearly with slots, not exponentially
      */
     const availabilityWithBookings = availabilitySlots.map((slot) => {
       const slotBookings = allBookings.filter(
