@@ -45,11 +45,11 @@ export class BookingService {
       });
     }
 
-    // Select painter with most bookings (most requested)
-    const selectedPainter = await this.selectPainterByStrategy(
-      availablePainters,
-      'most',
-    );
+    // Select painter (no need for strategy if only one is available)
+    const selectedPainter =
+      availablePainters.length === 1
+        ? availablePainters[0]
+        : await this.selectPainterByStrategy(availablePainters, 'most');
 
     // Create booking
     const [booking] = await this.db
